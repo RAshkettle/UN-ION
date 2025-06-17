@@ -1,0 +1,319 @@
+package main
+
+import (
+	"math/rand"
+	"union/assets"
+
+	"github.com/hajimehoshi/ebiten/v2"
+)
+
+// BlockType represents the three different charge types
+type BlockType int
+
+const (
+	PositiveBlock BlockType = iota
+	NegativeBlock
+	NeutralBlock
+)
+
+// Block represents a single block in a Tetris piece
+type Block struct {
+	X, Y      int
+	BlockType BlockType
+}
+
+// TetrisPiece represents a complete Tetris piece with multiple blocks
+type TetrisPiece struct {
+	Blocks   []Block
+	X, Y     int // Position of the piece
+	Rotation int // Current rotation state (0-3)
+}
+
+// PieceType represents the different Tetris piece shapes
+type PieceType int
+
+const (
+	IPiece PieceType = iota // Straight line
+	OPiece                  // Square
+	TPiece                  // T-shape
+	SPiece                  // S-shape
+	ZPiece                  // Z-shape
+	JPiece                  // J-shape
+	LPiece                  // L-shape
+)
+
+// BlockManager handles creation and rendering of Tetris pieces
+type BlockManager struct {
+	blockSize float64
+}
+
+// NewBlockManager creates a new block manager
+func NewBlockManager() *BlockManager {
+	return &BlockManager{
+		blockSize: 16.0, // Base size of 16x16 pixels
+	}
+}
+
+// GetScaledBlockSize returns the block size scaled for the current screen
+func (bm *BlockManager) GetScaledBlockSize(screenWidth, screenHeight int) float64 {
+	// Scale based on screen size (320x320 is base size)
+	scaleX := float64(screenWidth) / 320.0
+	scaleY := float64(screenHeight) / 320.0
+	scale := scaleX
+	if scaleY < scaleX {
+		scale = scaleY
+	}
+	return bm.blockSize * scale
+}
+
+// GenerateRandomBlockType returns a random block type with specified probabilities
+// Positive: 40%, Negative: 40%, Neutral: 20%
+func (bm *BlockManager) GenerateRandomBlockType() BlockType {
+	r := rand.Float64()
+	if r < 0.4 {
+		return PositiveBlock
+	} else if r < 0.8 {
+		return NegativeBlock
+	}
+	return NeutralBlock
+}
+
+// GetBlockSprite returns the appropriate sprite for a block type
+func (bm *BlockManager) GetBlockSprite(blockType BlockType) *ebiten.Image {
+	switch blockType {
+	case PositiveBlock:
+		return assets.PositiveChargeSprite
+	case NegativeBlock:
+		return assets.NegativeChargeSprite
+	case NeutralBlock:
+		return assets.NeutralChargeSprite
+	default:
+		return assets.NeutralChargeSprite
+	}
+}
+
+// GetPieceBlocks returns the block positions for a given piece type and rotation
+func (bm *BlockManager) GetPieceBlocks(pieceType PieceType, rotation int) []Block {
+	var blocks []Block
+	
+	switch pieceType {
+	case IPiece: // Straight line piece
+		if rotation%2 == 0 {
+			// Horizontal
+			for i := 0; i < 4; i++ {
+				blocks = append(blocks, Block{X: i, Y: 0, BlockType: bm.GenerateRandomBlockType()})
+			}
+		} else {
+			// Vertical
+			for i := 0; i < 4; i++ {
+				blocks = append(blocks, Block{X: 0, Y: i, BlockType: bm.GenerateRandomBlockType()})
+			}
+		}
+	
+	case OPiece: // Square piece (doesn't rotate)
+		blocks = []Block{
+			{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+			{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+			{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+		}
+	
+	case TPiece: // T-shaped piece
+		switch rotation % 4 {
+		case 0: // T pointing up
+			blocks = []Block{
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 1: // T pointing right
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 2: // T pointing down
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 3: // T pointing left
+			blocks = []Block{
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+			}
+		}
+	
+	case SPiece: // S-shaped piece
+		if rotation%2 == 0 {
+			blocks = []Block{
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		} else {
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+			}
+		}
+	
+	case ZPiece: // Z-shaped piece
+		if rotation%2 == 0 {
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		} else {
+			blocks = []Block{
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+			}
+		}
+	
+	case JPiece: // J-shaped piece
+		switch rotation % 4 {
+		case 0:
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 1:
+			blocks = []Block{
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 2:
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 3:
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+			}
+		}
+	
+	case LPiece: // L-shaped piece
+		switch rotation % 4 {
+		case 0:
+			blocks = []Block{
+				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 1:
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 2:
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 3:
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
+			}
+		}
+	}
+	
+	return blocks
+}
+
+// CreateTetrisPiece creates a new Tetris piece with random block types
+func (bm *BlockManager) CreateTetrisPiece(pieceType PieceType, x, y int) *TetrisPiece {
+	blocks := bm.GetPieceBlocks(pieceType, 0) // Start with rotation 0
+	
+	return &TetrisPiece{
+		Blocks:   blocks,
+		X:        x,
+		Y:        y,
+		Rotation: 0,
+	}
+}
+
+// DrawBlock renders a single block at the specified position
+func (bm *BlockManager) DrawBlock(screen *ebiten.Image, block Block, worldX, worldY float64, blockSize float64) {
+	sprite := bm.GetBlockSprite(block.BlockType)
+	
+	op := &ebiten.DrawImageOptions{}
+	
+	// Scale the sprite to match the block size
+	scaleX := blockSize / float64(sprite.Bounds().Dx())
+	scaleY := blockSize / float64(sprite.Bounds().Dy())
+	op.GeoM.Scale(scaleX, scaleY)
+	
+	// Position the block
+	op.GeoM.Translate(worldX, worldY)
+	
+	screen.DrawImage(sprite, op)
+}
+
+// DrawTetrisPiece renders a complete Tetris piece
+func (bm *BlockManager) DrawTetrisPiece(screen *ebiten.Image, piece *TetrisPiece, screenWidth, screenHeight int) {
+	blockSize := bm.GetScaledBlockSize(screenWidth, screenHeight)
+	
+	for _, block := range piece.Blocks {
+		worldX := float64(piece.X+block.X) * blockSize
+		worldY := float64(piece.Y+block.Y) * blockSize
+		
+		bm.DrawBlock(screen, block, worldX, worldY, blockSize)
+	}
+}
+
+// RotatePiece rotates a Tetris piece clockwise
+func (bm *BlockManager) RotatePiece(piece *TetrisPiece, pieceType PieceType) {
+	newRotation := (piece.Rotation + 1) % 4
+	newBlocks := bm.GetPieceBlocks(pieceType, newRotation)
+	
+	piece.Blocks = newBlocks
+	piece.Rotation = newRotation
+}
+
+// TestBlockDistribution tests the probability distribution of block types
+func (bm *BlockManager) TestBlockDistribution(numTests int) (positive, negative, neutral int) {
+	for i := 0; i < numTests; i++ {
+		blockType := bm.GenerateRandomBlockType()
+		switch blockType {
+		case PositiveBlock:
+			positive++
+		case NegativeBlock:
+			negative++
+		case NeutralBlock:
+			neutral++
+		}
+	}
+	return positive, negative, neutral
+}

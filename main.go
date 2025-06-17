@@ -1,11 +1,19 @@
 package main
 
-import "github.com/hajimehoshi/ebiten/v2"
+import (
+	"math/rand"
+	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
+)
 
 func main() {
+	// Seed random number generator
+	rand.Seed(time.Now().UnixNano())
+	
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowTitle("Un-ion")
-	ebiten.SetWindowSize(640, 480)
+	ebiten.SetWindowSize(320, 320)
 
 	sceneManager := NewSceneManager()
 
