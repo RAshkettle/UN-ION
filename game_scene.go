@@ -18,6 +18,7 @@ type GameScene struct {
 	currentPiece   *TetrisPiece
 	currentType    PieceType
 	fallTimer      *stopwatch.Stopwatch
+	CurrentScore   int
 }
 
 func (g *GameScene) Update() error {
@@ -83,6 +84,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 		inputHandler:  inputHandler,
 		renderer:      renderer,
 		fallTimer:     fallTimer,
+		CurrentScore:  0,
 	}
 
 	// Spawn initial piece
