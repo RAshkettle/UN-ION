@@ -16,6 +16,7 @@ type GameScene struct {
 	inputHandler    *InputHandler
 	renderer        *GameRenderer
 	particleSystem  *ParticleSystem
+	audioManager    *AudioManager
 	currentPiece    *TetrisPiece
 	currentType     PieceType
 	nextPiece       *TetrisPiece
@@ -164,6 +165,14 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	inputHandler := NewInputHandler(gameLogic)
 	renderer := NewGameRenderer(gameboard, blockManager)
 	particleSystem := NewParticleSystem()
+	audioManager := NewAudioManager()
+	
+	// Initialize audio
+	err := audioManager.Initialize()
+	if err != nil {
+		// Log error but continue without audio
+		println("Warning: Could not initialize audio:", err.Error())
+	}
 
 	g := &GameScene{
 		sceneManager:   sm,
@@ -173,6 +182,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 		inputHandler:   inputHandler,
 		renderer:       renderer,
 		particleSystem: particleSystem,
+		audioManager:   audioManager,
 		fallTimer:      fallTimer,
 		CurrentScore:   0,
 		lastUpdateTime: time.Now(),
@@ -181,6 +191,11 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	// Set up the explosion callback for particle effects
 	gameLogic.SetExplosionCallback(func(worldX, worldY float64, blockType BlockType) {
 		particleSystem.AddExplosion(worldX, worldY, blockType)
+	})
+
+	// Set up the audio callback for block breaking sounds
+	gameLogic.SetAudioCallback(func(blocksRemoved int) {
+		audioManager.PlayBlockBreakMultiple(blocksRemoved)
 	})
 
 	// Generate initial next piece

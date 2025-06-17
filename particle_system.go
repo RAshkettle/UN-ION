@@ -33,7 +33,7 @@ func NewParticleSystem() *ParticleSystem {
 
 // AddExplosion creates a cartoony explosion at the specified world coordinates
 func (ps *ParticleSystem) AddExplosion(worldX, worldY float64, blockType BlockType) {
-	numParticles := 15 + rand.Intn(10) // 15-25 particles
+	numParticles := 8 + rand.Intn(5) // 8-12 particles (reduced from 15-25)
 	
 	// Get base color based on block type
 	var baseR, baseG, baseB float64
@@ -52,21 +52,21 @@ func (ps *ParticleSystem) AddExplosion(worldX, worldY float64, blockType BlockTy
 		// Random angle for explosion direction
 		angle := rand.Float64() * 2 * math.Pi
 		
-		// Random speed with some variation
-		speed := 50.0 + rand.Float64()*100.0
+		// Reduced speed to keep particles more contained to the block
+		speed := 20.0 + rand.Float64()*40.0 // Reduced from 50-150 to 20-60
 		
 		// Calculate velocity components
 		vx := math.Cos(angle) * speed
 		vy := math.Sin(angle) * speed
 		
-		// Add some upward bias for more cartoony effect
-		vy -= 20.0
+		// Reduced upward bias
+		vy -= 10.0 // Reduced from 20.0
 		
-		// Random life duration around 0.5 seconds
-		maxLife := 0.4 + rand.Float64()*0.2
+		// Shorter life duration to keep explosion more contained
+		maxLife := 0.3 + rand.Float64()*0.2 // Reduced from 0.4-0.6 to 0.3-0.5
 		
-		// Random size
-		size := 2.0 + rand.Float64()*4.0
+		// Smaller particle size
+		size := 1.5 + rand.Float64()*2.5 // Reduced from 2-6 to 1.5-4
 		
 		// Color variation
 		r := baseR + (rand.Float64()-0.5)*0.3

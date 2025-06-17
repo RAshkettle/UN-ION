@@ -5,12 +5,16 @@ import "fmt"
 // ExplosionCallback is called when blocks are removed to trigger particle effects
 type ExplosionCallback func(worldX, worldY float64, blockType BlockType)
 
+// AudioCallback is called when blocks are removed to trigger audio effects
+type AudioCallback func(blocksRemoved int)
+
 // GameLogic handles game rules, collision detection, and piece management
 type GameLogic struct {
 	gameboard         *Gameboard
 	blockManager      *BlockManager
 	placedBlocks      []Block
 	explosionCallback ExplosionCallback
+	audioCallback     AudioCallback
 }
 
 // NewGameLogic creates a new game logic handler
@@ -25,6 +29,11 @@ func NewGameLogic(gameboard *Gameboard, blockManager *BlockManager) *GameLogic {
 // SetExplosionCallback sets the callback function for particle explosions
 func (gl *GameLogic) SetExplosionCallback(callback ExplosionCallback) {
 	gl.explosionCallback = callback
+}
+
+// SetAudioCallback sets the callback function for audio effects
+func (gl *GameLogic) SetAudioCallback(callback AudioCallback) {
+	gl.audioCallback = callback
 }
 
 // IsValidPosition checks if a piece can be placed at the given position
@@ -284,6 +293,11 @@ func (gl *GameLogic) findZeroSumSubsequence(cluster []Block) []Block {
 func (gl *GameLogic) removeBlocks(blocksToRemove []Block) {
 	if len(blocksToRemove) == 0 {
 		return
+	}
+
+	// Trigger audio callback for block breaking sound
+	if gl.audioCallback != nil {
+		gl.audioCallback(len(blocksToRemove))
 	}
 
 	// Create a map for fast lookup

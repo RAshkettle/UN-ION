@@ -15,6 +15,8 @@ var (
 	PositiveChargeSprite = loadImage("images/PositiveCharge.png")
 	NegativeChargeSprite = loadImage("images/NegativeCharge.png")
 	NeutralChargeSprite  = loadImage("images/NeutralCharge.png")
+
+	BlockBreakSound = loadAudio("audio/breakblock.ogg")
 )
 
 func loadImage(filePath string) *ebiten.Image {
@@ -30,4 +32,12 @@ func loadImage(filePath string) *ebiten.Image {
 
 	ebitenImg := ebiten.NewImageFromImage(img)
 	return ebitenImg
+}
+
+func loadAudio(filePath string) []byte {
+	data, err := assets.ReadFile(filePath)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
