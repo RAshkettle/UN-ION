@@ -212,9 +212,9 @@ func (g *GameScene) spawnNewPiece() {
 	g.currentType = pieceTypes[rand.Intn(len(pieceTypes))]
 	
 	// Spawn piece at top center of gameboard
-	// Calculate center of gameboard in grid coordinates (assuming 16px blocks)
-	blockSize := 16.0
-	gameboardWidthInBlocks := int(float64(g.gameboard.baseWidth) / blockSize)
+	// Use the same block size calculation as collision detection
+	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
+	gameboardWidthInBlocks := int(float64(g.gameboard.Width) / blockSize)
 	centerX := gameboardWidthInBlocks / 2
 	
 	g.currentPiece = g.blockManager.CreateTetrisPiece(g.currentType, centerX, 0)
@@ -222,9 +222,12 @@ func (g *GameScene) spawnNewPiece() {
 
 // isValidPosition checks if a piece can be placed at the given position
 func (g *GameScene) isValidPosition(piece *TetrisPiece, offsetX, offsetY int) bool {
-	blockSize := 16.0 // Base block size in pixels
-	gameboardWidthInBlocks := int(float64(g.gameboard.baseWidth) / blockSize)
-	gameboardHeightInBlocks := int(float64(g.gameboard.baseHeight) / blockSize)
+	// Use the actual scaled block size that's being used for rendering
+	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
+	
+	// Calculate grid dimensions based on actual gameboard size and block size
+	gameboardWidthInBlocks := int(float64(g.gameboard.Width) / blockSize)
+	gameboardHeightInBlocks := int(float64(g.gameboard.Height) / blockSize)
 	
 	for _, block := range piece.Blocks {
 		newX := piece.X + block.X + offsetX

@@ -54,16 +54,22 @@ func NewBlockManager() *BlockManager {
 	}
 }
 
-// GetScaledBlockSize returns the block size scaled for the current screen
-func (bm *BlockManager) GetScaledBlockSize(screenWidth, screenHeight int) float64 {
-	// Scale based on screen size (320x320 is base size)
-	scaleX := float64(screenWidth) / 320.0
-	scaleY := float64(screenHeight) / 320.0
-	scale := scaleX
-	if scaleY < scaleX {
-		scale = scaleY
+// GetScaledBlockSize returns the block size scaled for the current gameboard
+func (bm *BlockManager) GetScaledBlockSize(gameboardWidth, gameboardHeight int) float64 {
+	// Calculate how many blocks should fit in the gameboard
+	// We want 12 blocks wide (192/16) and 20 blocks tall (320/16)
+	baseBlocksWide := 12.0
+	baseBlocksTall := 20.0
+	
+	// Calculate block size based on gameboard dimensions
+	blockSizeFromWidth := float64(gameboardWidth) / baseBlocksWide
+	blockSizeFromHeight := float64(gameboardHeight) / baseBlocksTall
+	
+	// Use the smaller of the two to maintain aspect ratio
+	if blockSizeFromWidth < blockSizeFromHeight {
+		return blockSizeFromWidth
 	}
-	return bm.blockSize * scale
+	return blockSizeFromHeight
 }
 
 // GenerateRandomBlockType returns a random block type with specified probabilities
