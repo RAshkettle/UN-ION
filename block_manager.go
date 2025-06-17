@@ -252,6 +252,167 @@ func (bm *BlockManager) GetPieceBlocks(pieceType PieceType, rotation int) []Bloc
 	return blocks
 }
 
+// GetPiecePositions returns only the block positions for a given piece type and rotation
+// This is used for rotation to preserve block types while updating positions
+func (bm *BlockManager) GetPiecePositions(pieceType PieceType, rotation int) []struct{ X, Y int } {
+	var positions []struct{ X, Y int }
+	
+	switch pieceType {
+	case IPiece: // Straight line piece
+		if rotation%2 == 0 {
+			// Horizontal
+			for i := 0; i < 4; i++ {
+				positions = append(positions, struct{ X, Y int }{X: i, Y: 0})
+			}
+		} else {
+			// Vertical
+			for i := 0; i < 4; i++ {
+				positions = append(positions, struct{ X, Y int }{X: 0, Y: i})
+			}
+		}
+	
+	case OPiece: // Square piece (doesn't rotate)
+		positions = []struct{ X, Y int }{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+		}
+	
+	case TPiece: // T-shaped piece
+		switch rotation % 4 {
+		case 0: // T pointing up
+			positions = []struct{ X, Y int }{
+				{X: 1, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+				{X: 2, Y: 1},
+			}
+		case 1: // T pointing right
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+				{X: 0, Y: 2},
+			}
+		case 2: // T pointing down
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 1, Y: 0},
+				{X: 2, Y: 0},
+				{X: 1, Y: 1},
+			}
+		case 3: // T pointing left
+			positions = []struct{ X, Y int }{
+				{X: 1, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+				{X: 1, Y: 2},
+			}
+		}
+	
+	case SPiece: // S-shaped piece
+		if rotation%2 == 0 {
+			positions = []struct{ X, Y int }{
+				{X: 1, Y: 0},
+				{X: 2, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+			}
+		} else {
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+				{X: 1, Y: 2},
+			}
+		}
+	
+	case ZPiece: // Z-shaped piece
+		if rotation%2 == 0 {
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 1, Y: 0},
+				{X: 1, Y: 1},
+				{X: 2, Y: 1},
+			}
+		} else {
+			positions = []struct{ X, Y int }{
+				{X: 1, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+				{X: 0, Y: 2},
+			}
+		}
+	
+	case JPiece: // J-shaped piece
+		switch rotation % 4 {
+		case 0:
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+				{X: 2, Y: 1},
+			}
+		case 1:
+			positions = []struct{ X, Y int }{
+				{X: 1, Y: 0},
+				{X: 1, Y: 1},
+				{X: 1, Y: 2},
+				{X: 0, Y: 2},
+			}
+		case 2:
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 1, Y: 0},
+				{X: 2, Y: 0},
+				{X: 2, Y: 1},
+			}
+		case 3:
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 1, Y: 0},
+				{X: 0, Y: 1},
+				{X: 0, Y: 2},
+			}
+		}
+	
+	case LPiece: // L-shaped piece
+		switch rotation % 4 {
+		case 0:
+			positions = []struct{ X, Y int }{
+				{X: 2, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+				{X: 2, Y: 1},
+			}
+		case 1:
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 0, Y: 1},
+				{X: 0, Y: 2},
+				{X: 1, Y: 2},
+			}
+		case 2:
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 1, Y: 0},
+				{X: 2, Y: 0},
+				{X: 0, Y: 1},
+			}
+		case 3:
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 1, Y: 0},
+				{X: 1, Y: 1},
+				{X: 1, Y: 2},
+			}
+		}
+	}
+	
+	return positions
+}
+
 // CreateTetrisPiece creates a new Tetris piece with random block types
 func (bm *BlockManager) CreateTetrisPiece(pieceType PieceType, x, y int) *TetrisPiece {
 	blocks := bm.GetPieceBlocks(pieceType, 0) // Start with rotation 0
@@ -296,10 +457,19 @@ func (bm *BlockManager) DrawTetrisPiece(screen *ebiten.Image, piece *TetrisPiece
 // RotatePiece rotates a Tetris piece clockwise
 func (bm *BlockManager) RotatePiece(piece *TetrisPiece, pieceType PieceType) {
 	newRotation := (piece.Rotation + 1) % 4
-	newBlocks := bm.GetPieceBlocks(pieceType, newRotation)
 	
-	piece.Blocks = newBlocks
-	piece.Rotation = newRotation
+	// Get the new block positions for this rotation
+	newPositions := bm.GetPiecePositions(pieceType, newRotation)
+	
+	// Preserve the existing block types, only update positions
+	if len(newPositions) == len(piece.Blocks) {
+		for i, pos := range newPositions {
+			piece.Blocks[i].X = pos.X
+			piece.Blocks[i].Y = pos.Y
+			// Keep piece.Blocks[i].BlockType unchanged
+		}
+		piece.Rotation = newRotation
+	}
 }
 
 // TestBlockDistribution tests the probability distribution of block types
