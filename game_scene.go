@@ -36,6 +36,14 @@ func (g *GameScene) Update() error {
 			} else {
 				// Piece can't fall further, place it
 				g.gameLogic.PlacePiece(g.currentPiece)
+				
+				// Check for game over condition
+				if g.gameLogic.IsGameOver() {
+					// Transition to end scene with current score
+					g.sceneManager.TransitionToEndScreen(g.CurrentScore)
+					return nil
+				}
+				
 				g.spawnNewPiece()
 			}
 		}
@@ -56,6 +64,12 @@ func (g *GameScene) spawnNewPiece() {
 	g.currentType = pieceTypes[rand.Intn(len(pieceTypes))]
 	
 	g.currentPiece = g.gameLogic.SpawnNewPiece(g.currentType)
+	
+	// Check if the new piece can be placed at its spawn position
+	if g.currentPiece != nil && !g.gameLogic.IsValidPosition(g.currentPiece, 0, 0) {
+		// Game over - new piece can't be placed
+		g.sceneManager.TransitionToEndScreen(g.CurrentScore)
+	}
 }
 
 func (g *GameScene) Layout(outerWidth, outerHeight int) (int, int) {

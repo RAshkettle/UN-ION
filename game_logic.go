@@ -114,3 +114,14 @@ func (gl *GameLogic) TryMovePiece(piece *TetrisPiece, deltaX, deltaY int) bool {
 	
 	return false
 }
+
+// IsGameOver checks if any placed blocks have reached the top of the gameboard
+func (gl *GameLogic) IsGameOver() bool {
+	// Check if any placed blocks are at Y position 0 or negative (top of the screen)
+	for _, block := range gl.placedBlocks {
+		if block.Y <= 0 {
+			return true
+		}
+	}
+	return false
+}
