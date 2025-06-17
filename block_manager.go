@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"union/assets"
 
@@ -508,22 +509,65 @@ func (bm *BlockManager) DrawTetrisPiece(screen *ebiten.Image, piece *TetrisPiece
 	}
 }
 
-// RotatePiece rotates a Tetris piece clockwise
+// RotatePiece rotates a Tetris piece clockwise while preserving block type positions
 func (bm *BlockManager) RotatePiece(piece *TetrisPiece, pieceType PieceType) {
-	newRotation := (piece.Rotation + 1) % 4
-
-	// Get the new block positions for this rotation
-	newPositions := bm.GetPiecePositions(pieceType, newRotation)
-
-	// Preserve the existing block types, only update positions
-	if len(newPositions) == len(piece.Blocks) {
-		for i, pos := range newPositions {
-			piece.Blocks[i].X = pos.X
-			piece.Blocks[i].Y = pos.Y
-			// Keep piece.Blocks[i].BlockType unchanged
+	// Special handling for O piece to preserve visual consistency
+	if pieceType == OPiece {
+		// For O piece, we want to rotate the charge pattern, not the physical positions
+		newRotation := (piece.Rotation + 1) % 4
+		newPositions := bm.GetPiecePositions(pieceType, newRotation)
+		
+		if len(newPositions) == len(piece.Blocks) {
+			for i, pos := range newPositions {
+				piece.Blocks[i].X = pos.X
+				piece.Blocks[i].Y = pos.Y
+				// Keep piece.Blocks[i].BlockType unchanged for O piece
+			}
+			piece.Rotation = newRotation
 		}
-		piece.Rotation = newRotation
+		return
 	}
+
+	// For other pieces, we need to physically rotate while preserving block types at positions
+	// Create a map of current world positions to block types
+	positionToType := make(map[string]BlockType)
+	for _, block := range piece.Blocks {
+		worldX := piece.X + block.X
+		worldY := piece.Y + block.Y
+		key := fmt.Sprintf("%d,%d", worldX, worldY)
+		positionToType[key] = block.BlockType
+	}
+
+	// Calculate center of rotation (bounding box center)
+	minX, maxX := piece.Blocks[0].X, piece.Blocks[0].X
+	minY, maxY := piece.Blocks[0].Y, piece.Blocks[0].Y
+	for _, block := range piece.Blocks {
+		if block.X < minX { minX = block.X }
+		if block.X > maxX { maxX = block.X }
+		if block.Y < minY { minY = block.Y }
+		if block.Y > maxY { maxY = block.Y }
+	}
+	centerX := float64(minX + maxX) / 2.0
+	centerY := float64(minY + maxY) / 2.0
+
+	// Rotate each block around the center
+	for i := range piece.Blocks {
+		block := &piece.Blocks[i]
+		
+		// Translate to origin
+		relX := float64(block.X) - centerX
+		relY := float64(block.Y) - centerY
+		
+		// Rotate 90 degrees clockwise: (x,y) -> (y,-x)
+		newRelX := relY
+		newRelY := -relX
+		
+		// Translate back and round to nearest integer
+		block.X = int(newRelX + centerX + 0.5)
+		block.Y = int(newRelY + centerY + 0.5)
+	}
+
+	piece.Rotation = (piece.Rotation + 1) % 4
 }
 
 // TestBlockDistribution tests the probability distribution of block types

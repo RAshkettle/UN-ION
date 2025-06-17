@@ -77,6 +77,7 @@ func (g *GameScene) Update() error {
 
 func (g *GameScene) Draw(screen *ebiten.Image) {
 	g.renderer.Render(screen, g.gameLogic.GetPlacedBlocks(), g.currentPiece)
+	g.renderer.RenderScore(screen, g.CurrentScore)
 	g.renderNextPiecePreview(screen)
 	
 	// Render particles on top of everything

@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text"
+	"golang.org/x/image/font/basicfont"
 )
 
 // GameRenderer handles all rendering operations
@@ -54,4 +57,26 @@ func (gr *GameRenderer) Render(screen *ebiten.Image, placedBlocks []Block, curre
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(gr.gameboard.X), float64(gr.gameboard.Y))
 	screen.DrawImage(blocksImage, op)
+}
+
+// RenderScore draws the current score on the left side of the gameboard
+func (gr *GameRenderer) RenderScore(screen *ebiten.Image, currentScore int) {
+	// Position score relative to gameboard but ensure it's visible
+	margin := 10
+	scoreX := max(margin, gr.gameboard.X - 80)
+	scoreY := gr.gameboard.Y + 50
+	
+	// Draw "SCORE" label
+	text.Draw(screen, "SCORE", basicfont.Face7x13, scoreX, scoreY, color.RGBA{200, 200, 255, 255})
+	
+	// Draw the actual score value with better formatting
+	scoreText := fmt.Sprintf("%d", currentScore)
+	text.Draw(screen, scoreText, basicfont.Face7x13, scoreX, scoreY+25, color.RGBA{255, 255, 255, 255})
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
