@@ -14,6 +14,7 @@ type TitleScene struct {
 	sceneManager *SceneManager
 	titleFont    *text.GoTextFace
 	subtitleFont *text.GoTextFace
+	helpFont     *text.GoTextFace
 }
 
 func (t *TitleScene) Draw(screen *ebiten.Image) {
@@ -43,6 +44,30 @@ func (t *TitleScene) Draw(screen *ebiten.Image) {
 	op2.GeoM.Translate(float64(subtitleX), float64(subtitleY))
 	op2.ColorScale.ScaleWithColor(color.RGBA{180, 180, 200, 255})
 	text.Draw(screen, subtitleText, t.subtitleFont, op2)
+
+	// Draw controls help - positioned right under the subtitle
+	controls := []string{
+		"Controls:",
+		"WASD/Arrow Keys: Move piece",
+		"Space: Rotate piece",
+	}
+	
+	helpStartY := subtitleY + 40  // Much closer to subtitle
+	for i, control := range controls {
+		controlBounds, _ := text.Measure(control, t.helpFont, 0)
+		controlX := (w - int(controlBounds)) / 2
+		controlY := helpStartY + i*18  // Tighter spacing
+
+		op3 := &text.DrawOptions{}
+		op3.GeoM.Translate(float64(controlX), float64(controlY))
+		if i == 0 {
+			// Make "Controls:" header slightly brighter
+			op3.ColorScale.ScaleWithColor(color.RGBA{200, 200, 220, 255})
+		} else {
+			op3.ColorScale.ScaleWithColor(color.RGBA{150, 150, 170, 255})
+		}
+		text.Draw(screen, control, t.helpFont, op3)
+	}
 }
 
 func (t *TitleScene) Update() error {
@@ -86,9 +111,16 @@ func NewTitleScene(sm *SceneManager) *TitleScene {
 		Size:   24,
 	}
 
+	helpFontSource, _ := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	helpFont := &text.GoTextFace{
+		Source: helpFontSource,
+		Size:   12,  // Reduced from 16 to 12
+	}
+
 	return &TitleScene{
 		sceneManager: sm,
 		titleFont:    titleFont,
 		subtitleFont: subtitleFont,
+		helpFont:     helpFont,
 	}
 }

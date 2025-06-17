@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	_ "embed"
 	"fmt"
 	"image/color"
@@ -10,8 +9,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"golang.org/x/image/font/gofont/goregular"
 )
 
 //go:embed shaders/electrical_storm.kage
@@ -112,7 +109,6 @@ type GameScene struct {
 	currentType    PieceType
 	lastSpawnTime  time.Time
 	spawnInterval  time.Duration
-	debugFont      *text.GoTextFace
 }
 
 func (g *GameScene) Update() error {
@@ -179,43 +175,7 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	}
 	
 	// Draw debug information
-	g.drawDebugInfo(screen)
-}
-
-func (g *GameScene) drawDebugInfo(screen *ebiten.Image) {
-	if g.currentPiece == nil {
-		return
-	}
-
-	// Draw piece type
-	pieceNames := map[PieceType]string{
-		IPiece: "I-Piece", OPiece: "O-Piece", TPiece: "T-Piece", 
-		SPiece: "S-Piece", ZPiece: "Z-Piece", JPiece: "J-Piece", LPiece: "L-Piece",
-	}
-	
-	op := &text.DrawOptions{}
-	op.GeoM.Translate(10, 20)
-	op.ColorScale.ScaleWithColor(color.RGBA{255, 255, 255, 255})
-	text.Draw(screen, fmt.Sprintf("Current: %s", pieceNames[g.currentType]), g.debugFont, op)
-
-	// Draw gameboard info
-	op2 := &text.DrawOptions{}
-	op2.GeoM.Translate(10, 40)
-	op2.ColorScale.ScaleWithColor(color.RGBA{255, 255, 255, 255})
-	text.Draw(screen, fmt.Sprintf("Gameboard: %dx%d at (%d,%d)", g.gameboard.Width, g.gameboard.Height, g.gameboard.X, g.gameboard.Y), g.debugFont, op2)
-
-	// Draw controls
-	controls := []string{
-		"WASD/Arrows: Move",
-		"Space: Rotate",
-	}
-	
-	for i, control := range controls {
-		op3 := &text.DrawOptions{}
-		op3.GeoM.Translate(10, float64(200+i*15))
-		op3.ColorScale.ScaleWithColor(color.RGBA{150, 150, 150, 255})
-		text.Draw(screen, control, g.debugFont, op3)
-	}
+	// g.drawDebugInfo(screen) // Removed debug info
 }
 
 func (g *GameScene) spawnNewPiece() {
@@ -239,20 +199,12 @@ func (g *GameScene) Layout(outerWidth, outerHeight int) (int, int) {
 }
 
 func NewGameScene(sm *SceneManager) *GameScene {
-	// Create debug font
-	debugFontSource, _ := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
-	debugFont := &text.GoTextFace{
-		Source: debugFontSource,
-		Size:   12,
-	}
-
 	g := &GameScene{
 		sceneManager:  sm,
 		gameboard:     NewGameboard(192, 320), // 192px wide, 320px tall
 		blockManager:  NewBlockManager(),
 		lastSpawnTime: time.Now(),
 		spawnInterval: 3 * time.Second, // Spawn new piece every 3 seconds for demo
-		debugFont:     debugFont,
 	}
 
 	// Spawn initial piece
