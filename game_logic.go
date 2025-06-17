@@ -129,7 +129,10 @@ func (gl *GameLogic) IsGameOver() bool {
 }
 
 // CheckAndProcessReactions finds horizontal clusters and removes contiguous zero-sum subsequences
-func (gl *GameLogic) CheckAndProcessReactions() {
+// Returns the total score earned from all reactions
+func (gl *GameLogic) CheckAndProcessReactions() int {
+	totalScore := 0
+	
 	for {
 		blocksToRemove := gl.findBlocksToRemove()
 
@@ -137,12 +140,35 @@ func (gl *GameLogic) CheckAndProcessReactions() {
 			break // No more reactions possible
 		}
 
+		// Calculate score for this reaction
+		reactionScore := gl.calculateReactionScore(len(blocksToRemove))
+		totalScore += reactionScore
+
 		// Remove the blocks
 		gl.removeBlocks(blocksToRemove)
 
 		// Make remaining blocks fall
 		gl.processBlockFalling()
 	}
+	
+	return totalScore
+}
+
+// calculateReactionScore calculates score based on number of blocks removed
+// 4 blocks = 10 points, each additional block multiplies by 2
+func (gl *GameLogic) calculateReactionScore(blocksRemoved int) int {
+	if blocksRemoved < 4 {
+		return 0 // No score for less than 4 blocks
+	}
+	
+	score := 10 // Base score for 4 blocks
+	
+	// For each block beyond 4, multiply by 2
+	for i := 4; i < blocksRemoved; i++ {
+		score *= 2
+	}
+	
+	return score
 }
 
 // findBlocksToRemove finds all blocks that should be removed based on the rules
