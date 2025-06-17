@@ -116,12 +116,36 @@ func (bm *BlockManager) GetPieceBlocks(pieceType PieceType, rotation int) []Bloc
 			}
 		}
 	
-	case OPiece: // Square piece (doesn't rotate)
-		blocks = []Block{
-			{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-			{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-			{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+	case OPiece: // Square piece - now rotates to move charged blocks
+		switch rotation % 4 {
+		case 0: // Original position
+			blocks = []Block{
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 1: // 90 degrees clockwise
+			blocks = []Block{
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 2: // 180 degrees
+			blocks = []Block{
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+			}
+		case 3: // 270 degrees clockwise
+			blocks = []Block{
+				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
+				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
+			}
 		}
 	
 	case TPiece: // T-shaped piece
@@ -277,12 +301,36 @@ func (bm *BlockManager) GetPiecePositions(pieceType PieceType, rotation int) []s
 			}
 		}
 	
-	case OPiece: // Square piece (doesn't rotate)
-		positions = []struct{ X, Y int }{
-			{X: 0, Y: 0},
-			{X: 1, Y: 0},
-			{X: 0, Y: 1},
-			{X: 1, Y: 1},
+	case OPiece: // Square piece - now rotates to move charged blocks
+		switch rotation % 4 {
+		case 0: // Original position
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 0},
+				{X: 1, Y: 0},
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+			}
+		case 1: // 90 degrees clockwise
+			positions = []struct{ X, Y int }{
+				{X: 1, Y: 0},
+				{X: 1, Y: 1},
+				{X: 0, Y: 0},
+				{X: 0, Y: 1},
+			}
+		case 2: // 180 degrees
+			positions = []struct{ X, Y int }{
+				{X: 1, Y: 1},
+				{X: 0, Y: 1},
+				{X: 1, Y: 0},
+				{X: 0, Y: 0},
+			}
+		case 3: // 270 degrees clockwise
+			positions = []struct{ X, Y int }{
+				{X: 0, Y: 1},
+				{X: 0, Y: 0},
+				{X: 1, Y: 1},
+				{X: 1, Y: 0},
+			}
 		}
 	
 	case TPiece: // T-shaped piece
