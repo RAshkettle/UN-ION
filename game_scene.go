@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"time"
 
+	stopwatch "github.com/RAshkettle/Stopwatch"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
@@ -109,37 +110,62 @@ type GameScene struct {
 	currentType    PieceType
 	lastSpawnTime  time.Time
 	spawnInterval  time.Duration
+	fallTimer      *stopwatch.Stopwatch
+	placedBlocks   []Block // Blocks that have been placed on the board
 }
 
 func (g *GameScene) Update() error {
+	// Update the fall timer
+	g.fallTimer.Update()
+	
 	// Handle piece rotation
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		if g.currentPiece != nil {
+			// Store original rotation in case we need to revert
+			originalRotation := g.currentPiece.Rotation
+			originalBlocks := make([]Block, len(g.currentPiece.Blocks))
+			copy(originalBlocks, g.currentPiece.Blocks)
+			
 			g.blockManager.RotatePiece(g.currentPiece, g.currentType)
+			
+			// Check if rotation is valid
+			if !g.isValidPosition(g.currentPiece, 0, 0) {
+				// Revert rotation
+				g.currentPiece.Rotation = originalRotation
+				g.currentPiece.Blocks = originalBlocks
+			}
 		}
 	}
 
-	// Handle piece movement
+	// Handle piece movement (16 pixels = 1 block)
 	if inpututil.IsKeyJustPressed(ebiten.KeyA) || inpututil.IsKeyJustPressed(ebiten.KeyArrowLeft) {
-		if g.currentPiece != nil {
+		if g.currentPiece != nil && g.isValidPosition(g.currentPiece, -1, 0) {
 			g.currentPiece.X--
 		}
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyD) || inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
-		if g.currentPiece != nil {
+		if g.currentPiece != nil && g.isValidPosition(g.currentPiece, 1, 0) {
 			g.currentPiece.X++
 		}
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyS) || inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) {
-		if g.currentPiece != nil {
+		if g.currentPiece != nil && g.isValidPosition(g.currentPiece, 0, 1) {
 			g.currentPiece.Y++
 		}
 	}
 
-	// Spawn new piece periodically for demonstration
-	if time.Since(g.lastSpawnTime) > g.spawnInterval {
-		g.spawnNewPiece()
-		g.lastSpawnTime = time.Now()
+	// Handle automatic falling (every 1 second)
+	if g.fallTimer.IsDone() {
+		if g.currentPiece != nil {
+			if g.isValidPosition(g.currentPiece, 0, 1) {
+				g.currentPiece.Y++ // Fall 1 block (16 pixels when scaled)
+			} else {
+				// Piece can't fall further, place it
+				g.placePiece()
+			}
+		}
+		g.fallTimer.Reset()
+		g.fallTimer.Start()
 	}
 
 	return nil
@@ -152,30 +178,32 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	// Draw the gameboard with shader effect FIRST (background)
 	g.gameboard.Draw(screen)
 	
-	// Draw current piece AFTER gameboard (foreground)
+	// Calculate block size for rendering
+	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
+	
+	// Create a temporary image for all blocks
+	blocksImage := ebiten.NewImage(g.gameboard.Width, g.gameboard.Height)
+	
+	// Draw placed blocks first
+	for _, block := range g.placedBlocks {
+		worldX := float64(block.X) * blockSize
+		worldY := float64(block.Y) * blockSize
+		g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
+	}
+	
+	// Draw current piece on top of placed blocks
 	if g.currentPiece != nil {
-		// Calculate piece position relative to gameboard
-		blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
-		
-		// Create a temporary image for the piece
-		pieceImage := ebiten.NewImage(g.gameboard.Width, g.gameboard.Height)
-		
-		// Draw the piece on the temporary image
 		for _, block := range g.currentPiece.Blocks {
 			worldX := float64(g.currentPiece.X+block.X) * blockSize
 			worldY := float64(g.currentPiece.Y+block.Y) * blockSize
-			
-			g.blockManager.DrawBlock(pieceImage, block, worldX, worldY, blockSize)
+			g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
 		}
-		
-		// Draw the piece image on top of the gameboard
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(g.gameboard.X), float64(g.gameboard.Y))
-		screen.DrawImage(pieceImage, op)
 	}
 	
-	// Draw debug information
-	// g.drawDebugInfo(screen) // Removed debug info
+	// Draw all blocks on top of the gameboard
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(g.gameboard.X), float64(g.gameboard.Y))
+	screen.DrawImage(blocksImage, op)
 }
 
 func (g *GameScene) spawnNewPiece() {
@@ -192,6 +220,51 @@ func (g *GameScene) spawnNewPiece() {
 	g.currentPiece = g.blockManager.CreateTetrisPiece(g.currentType, centerX, 0)
 }
 
+// isValidPosition checks if a piece can be placed at the given position
+func (g *GameScene) isValidPosition(piece *TetrisPiece, offsetX, offsetY int) bool {
+	blockSize := 16.0 // Base block size in pixels
+	gameboardWidthInBlocks := int(float64(g.gameboard.baseWidth) / blockSize)
+	gameboardHeightInBlocks := int(float64(g.gameboard.baseHeight) / blockSize)
+	
+	for _, block := range piece.Blocks {
+		newX := piece.X + block.X + offsetX
+		newY := piece.Y + block.Y + offsetY
+		
+		// Check boundaries
+		if newX < 0 || newX >= gameboardWidthInBlocks || newY >= gameboardHeightInBlocks {
+			return false
+		}
+		
+		// Check collision with placed blocks
+		for _, placedBlock := range g.placedBlocks {
+			if placedBlock.X == newX && placedBlock.Y == newY {
+				return false
+			}
+		}
+	}
+	
+	return true
+}
+
+// placePiece adds the current piece to the placed blocks
+func (g *GameScene) placePiece() {
+	if g.currentPiece == nil {
+		return
+	}
+	
+	for _, block := range g.currentPiece.Blocks {
+		placedBlock := Block{
+			X:         g.currentPiece.X + block.X,
+			Y:         g.currentPiece.Y + block.Y,
+			BlockType: block.BlockType,
+		}
+		g.placedBlocks = append(g.placedBlocks, placedBlock)
+	}
+	
+	// Spawn new piece
+	g.spawnNewPiece()
+}
+
 func (g *GameScene) Layout(outerWidth, outerHeight int) (int, int) {
 	// Update gameboard scaling when layout changes
 	g.gameboard.UpdateScale(outerWidth, outerHeight)
@@ -199,12 +272,18 @@ func (g *GameScene) Layout(outerWidth, outerHeight int) (int, int) {
 }
 
 func NewGameScene(sm *SceneManager) *GameScene {
+	// Create fall timer (1 second intervals)
+	fallTimer := stopwatch.NewStopwatch(1 * time.Second)
+	fallTimer.Start()
+	
 	g := &GameScene{
 		sceneManager:  sm,
 		gameboard:     NewGameboard(192, 320), // 192px wide, 320px tall
 		blockManager:  NewBlockManager(),
+		fallTimer:     fallTimer,
+		placedBlocks:  make([]Block, 0),
 		lastSpawnTime: time.Now(),
-		spawnInterval: 3 * time.Second, // Spawn new piece every 3 seconds for demo
+		spawnInterval: time.Hour, // Long interval since we spawn on demand now
 	}
 
 	// Spawn initial piece

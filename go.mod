@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/RAshkettle/Stopwatch v1.0.3 // indirect
 	github.com/ebitengine/gomobile v0.0.0-20240911145611-4856209ac325 // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
 	github.com/ebitengine/purego v0.8.0 // indirect
