@@ -9,21 +9,36 @@ import (
 )
 
 type GameScene struct {
-	sceneManager *SceneManager
-	gameboard    *Gameboard
-	blockManager *BlockManager
-	gameLogic    *GameLogic
-	inputHandler *InputHandler
-	renderer     *GameRenderer
-	currentPiece *TetrisPiece
-	currentType  PieceType
-	nextPiece    *TetrisPiece
-	nextType     PieceType
-	fallTimer    *stopwatch.Stopwatch
-	CurrentScore int
+	sceneManager    *SceneManager
+	gameboard       *Gameboard
+	blockManager    *BlockManager
+	gameLogic       *GameLogic
+	inputHandler    *InputHandler
+	renderer        *GameRenderer
+	particleSystem  *ParticleSystem
+	currentPiece    *TetrisPiece
+	currentType     PieceType
+	nextPiece       *TetrisPiece
+	nextType        PieceType
+	fallTimer       *stopwatch.Stopwatch
+	CurrentScore    int
+	lastUpdateTime  time.Time
 }
 
 func (g *GameScene) Update() error {
+	// Calculate delta time
+	now := time.Now()
+	if g.lastUpdateTime.IsZero() {
+		g.lastUpdateTime = now
+	}
+	dt := now.Sub(g.lastUpdateTime).Seconds()
+	g.lastUpdateTime = now
+	
+	// Update particle system
+	if g.particleSystem != nil {
+		g.particleSystem.Update(dt)
+	}
+
 	// Update the fall timer
 	g.fallTimer.Update()
 
@@ -63,6 +78,11 @@ func (g *GameScene) Update() error {
 func (g *GameScene) Draw(screen *ebiten.Image) {
 	g.renderer.Render(screen, g.gameLogic.GetPlacedBlocks(), g.currentPiece)
 	g.renderNextPiecePreview(screen)
+	
+	// Render particles on top of everything
+	if g.particleSystem != nil {
+		g.particleSystem.Draw(screen)
+	}
 }
 
 func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {
@@ -142,17 +162,25 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	gameLogic := NewGameLogic(gameboard, blockManager)
 	inputHandler := NewInputHandler(gameLogic)
 	renderer := NewGameRenderer(gameboard, blockManager)
+	particleSystem := NewParticleSystem()
 
 	g := &GameScene{
-		sceneManager: sm,
-		gameboard:    gameboard,
-		blockManager: blockManager,
-		gameLogic:    gameLogic,
-		inputHandler: inputHandler,
-		renderer:     renderer,
-		fallTimer:    fallTimer,
-		CurrentScore: 0,
+		sceneManager:   sm,
+		gameboard:      gameboard,
+		blockManager:   blockManager,
+		gameLogic:      gameLogic,
+		inputHandler:   inputHandler,
+		renderer:       renderer,
+		particleSystem: particleSystem,
+		fallTimer:      fallTimer,
+		CurrentScore:   0,
+		lastUpdateTime: time.Now(),
 	}
+
+	// Set up the explosion callback for particle effects
+	gameLogic.SetExplosionCallback(func(worldX, worldY float64, blockType BlockType) {
+		particleSystem.AddExplosion(worldX, worldY, blockType)
+	})
 
 	// Generate initial next piece
 	g.generateNextPiece()

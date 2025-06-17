@@ -2,11 +2,15 @@ package main
 
 import "fmt"
 
+// ExplosionCallback is called when blocks are removed to trigger particle effects
+type ExplosionCallback func(worldX, worldY float64, blockType BlockType)
+
 // GameLogic handles game rules, collision detection, and piece management
 type GameLogic struct {
-	gameboard    *Gameboard
-	blockManager *BlockManager
-	placedBlocks []Block
+	gameboard         *Gameboard
+	blockManager      *BlockManager
+	placedBlocks      []Block
+	explosionCallback ExplosionCallback
 }
 
 // NewGameLogic creates a new game logic handler
@@ -16,6 +20,11 @@ func NewGameLogic(gameboard *Gameboard, blockManager *BlockManager) *GameLogic {
 		blockManager: blockManager,
 		placedBlocks: make([]Block, 0),
 	}
+}
+
+// SetExplosionCallback sets the callback function for particle explosions
+func (gl *GameLogic) SetExplosionCallback(callback ExplosionCallback) {
+	gl.explosionCallback = callback
 }
 
 // IsValidPosition checks if a piece can be placed at the given position
@@ -290,6 +299,14 @@ func (gl *GameLogic) removeBlocks(blocksToRemove []Block) {
 		key := fmt.Sprintf("%d,%d", block.X, block.Y)
 		if !removeMap[key] {
 			remainingBlocks = append(remainingBlocks, block)
+		} else {
+			// Trigger explosion callback for particle effects
+			if gl.explosionCallback != nil {
+				blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
+				worldX := float64(gl.gameboard.X) + float64(block.X)*blockSize + blockSize/2
+				worldY := float64(gl.gameboard.Y) + float64(block.Y)*blockSize + blockSize/2
+				gl.explosionCallback(worldX, worldY, block.BlockType)
+			}
 		}
 	}
 
