@@ -37,6 +37,9 @@ func (g *GameScene) Update() error {
 				// Piece can't fall further, place it
 				g.gameLogic.PlacePiece(g.currentPiece)
 				
+				// Process any chain reactions from placed blocks
+				g.gameLogic.CheckAndProcessReactions()
+				
 				// Check for game over condition
 				if g.gameLogic.IsGameOver() {
 					// Transition to end scene with current score

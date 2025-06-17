@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // GameLogic handles game rules, collision detection, and piece management
 type GameLogic struct {
 	gameboard    *Gameboard
@@ -124,4 +126,203 @@ func (gl *GameLogic) IsGameOver() bool {
 		}
 	}
 	return false
+}
+
+// CheckAndProcessReactions finds horizontal clusters and removes contiguous zero-sum subsequences
+func (gl *GameLogic) CheckAndProcessReactions() {
+	for {
+		blocksToRemove := gl.findBlocksToRemove()
+		
+		if len(blocksToRemove) == 0 {
+			break // No more reactions possible
+		}
+		
+		// Debug output
+		fmt.Println("=== REMOVING BLOCKS ===")
+		for _, block := range blocksToRemove {
+			chargeStr := ""
+			switch block.BlockType {
+			case PositiveBlock:
+				chargeStr = "+"
+			case NegativeBlock:
+				chargeStr = "-"
+			case NeutralBlock:
+				chargeStr = "0"
+			}
+			fmt.Printf("  Block at (%d, %d) charge: %s\n", block.X, block.Y, chargeStr)
+		}
+		fmt.Println("=======================")
+		
+		// Remove the blocks
+		gl.removeBlocks(blocksToRemove)
+		
+		// Make remaining blocks fall
+		gl.processBlockFalling()
+	}
+}
+
+// findBlocksToRemove finds all blocks that should be removed based on the rules
+func (gl *GameLogic) findBlocksToRemove() []Block {
+	var blocksToRemove []Block
+	
+	// Group blocks by row (Y coordinate)
+	rowMap := make(map[int][]Block)
+	for _, block := range gl.placedBlocks {
+		rowMap[block.Y] = append(rowMap[block.Y], block)
+	}
+	
+	// Process each row
+	for y, rowBlocks := range rowMap {
+		if len(rowBlocks) < 3 {
+			continue // Need at least 3 blocks
+		}
+		
+		// Sort blocks by X position
+		for i := 0; i < len(rowBlocks); i++ {
+			for j := i + 1; j < len(rowBlocks); j++ {
+				if rowBlocks[i].X > rowBlocks[j].X {
+					rowBlocks[i], rowBlocks[j] = rowBlocks[j], rowBlocks[i]
+				}
+			}
+		}
+		
+		fmt.Printf("Processing row %d with %d blocks\n", y, len(rowBlocks))
+		
+		// Find contiguous clusters (broken by gaps or neutral blocks)
+		clusters := gl.findClustersInRow(rowBlocks)
+		
+		// For each cluster, find zero-sum subsequences
+		for _, cluster := range clusters {
+			if len(cluster) >= 3 {
+				zeroSumBlocks := gl.findZeroSumSubsequence(cluster)
+				blocksToRemove = append(blocksToRemove, zeroSumBlocks...)
+			}
+		}
+	}
+	
+	return blocksToRemove
+}
+
+// findClustersInRow splits a row into contiguous clusters (broken by gaps or neutral blocks)
+func (gl *GameLogic) findClustersInRow(rowBlocks []Block) [][]Block {
+	var clusters [][]Block
+	var currentCluster []Block
+	
+	for i, block := range rowBlocks {
+		// Check if this block breaks the cluster
+		if block.BlockType == NeutralBlock {
+			// Neutral blocks break clusters
+			if len(currentCluster) >= 3 {
+				clusters = append(clusters, currentCluster)
+			}
+			currentCluster = nil
+		} else if i > 0 && block.X != rowBlocks[i-1].X+1 {
+			// Gap in X coordinates breaks clusters
+			if len(currentCluster) >= 3 {
+				clusters = append(clusters, currentCluster)
+			}
+			currentCluster = []Block{block}
+		} else {
+			// Continue the cluster
+			currentCluster = append(currentCluster, block)
+		}
+	}
+	
+	// Don't forget the last cluster
+	if len(currentCluster) >= 3 {
+		clusters = append(clusters, currentCluster)
+	}
+	
+	return clusters
+}
+
+// findZeroSumSubsequence finds the longest contiguous subsequence that sums to zero
+func (gl *GameLogic) findZeroSumSubsequence(cluster []Block) []Block {
+	// Try all possible contiguous subsequences of length 3 or more
+	for length := len(cluster); length >= 3; length-- {
+		for start := 0; start <= len(cluster)-length; start++ {
+			subsequence := cluster[start : start+length]
+			
+			// Calculate sum
+			sum := 0
+			for _, block := range subsequence {
+				switch block.BlockType {
+				case PositiveBlock:
+					sum += 1
+				case NegativeBlock:
+					sum -= 1
+				}
+			}
+			
+			if sum == 0 {
+				fmt.Printf("Found zero-sum subsequence of length %d starting at position %d\n", length, start)
+				return subsequence
+			}
+		}
+	}
+	
+	return nil
+}
+
+// removeBlocks removes specified blocks from the placed blocks array
+func (gl *GameLogic) removeBlocks(blocksToRemove []Block) {
+	if len(blocksToRemove) == 0 {
+		return
+	}
+	
+	// Create a map for fast lookup
+	removeMap := make(map[string]bool)
+	for _, block := range blocksToRemove {
+		key := fmt.Sprintf("%d,%d", block.X, block.Y)
+		removeMap[key] = true
+	}
+	
+	// Filter out the blocks to remove
+	var remainingBlocks []Block
+	for _, block := range gl.placedBlocks {
+		key := fmt.Sprintf("%d,%d", block.X, block.Y)
+		if !removeMap[key] {
+			remainingBlocks = append(remainingBlocks, block)
+		}
+	}
+	
+	gl.placedBlocks = remainingBlocks
+}
+
+// processBlockFalling makes remaining blocks fall individually
+func (gl *GameLogic) processBlockFalling() {
+	// Sort blocks by Y position (bottom to top)
+	for i := 0; i < len(gl.placedBlocks); i++ {
+		for j := i + 1; j < len(gl.placedBlocks); j++ {
+			if gl.placedBlocks[i].Y < gl.placedBlocks[j].Y {
+				gl.placedBlocks[i], gl.placedBlocks[j] = gl.placedBlocks[j], gl.placedBlocks[i]
+			}
+		}
+	}
+	
+	// Make each block fall
+	blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
+	gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
+	
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		
+		// Find the lowest valid Y position
+		for newY := block.Y + 1; newY < gameboardHeightInBlocks; newY++ {
+			// Check if position is occupied
+			occupied := false
+			for j := range gl.placedBlocks {
+				if i != j && gl.placedBlocks[j].X == block.X && gl.placedBlocks[j].Y == newY {
+					occupied = true
+					break
+				}
+			}
+			
+			if occupied {
+				break
+			}
+			
+			block.Y = newY
+		}
+	}
 }
