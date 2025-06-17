@@ -22,20 +22,20 @@ func NewGameLogic(gameboard *Gameboard, blockManager *BlockManager) *GameLogic {
 func (gl *GameLogic) IsValidPosition(piece *TetrisPiece, offsetX, offsetY int) bool {
 	// Use the actual scaled block size that's being used for rendering
 	blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
-	
+
 	// Calculate grid dimensions based on actual gameboard size and block size
 	gameboardWidthInBlocks := int(float64(gl.gameboard.Width) / blockSize)
 	gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
-	
+
 	for _, block := range piece.Blocks {
 		newX := piece.X + block.X + offsetX
 		newY := piece.Y + block.Y + offsetY
-		
+
 		// Check boundaries
 		if newX < 0 || newX >= gameboardWidthInBlocks || newY >= gameboardHeightInBlocks {
 			return false
 		}
-		
+
 		// Check collision with placed blocks
 		for _, placedBlock := range gl.placedBlocks {
 			if placedBlock.X == newX && placedBlock.Y == newY {
@@ -43,7 +43,7 @@ func (gl *GameLogic) IsValidPosition(piece *TetrisPiece, offsetX, offsetY int) b
 			}
 		}
 	}
-	
+
 	return true
 }
 
@@ -52,7 +52,7 @@ func (gl *GameLogic) PlacePiece(piece *TetrisPiece) {
 	if piece == nil {
 		return
 	}
-	
+
 	for _, block := range piece.Blocks {
 		placedBlock := Block{
 			X:         piece.X + block.X,
@@ -74,7 +74,7 @@ func (gl *GameLogic) SpawnNewPiece(pieceType PieceType) *TetrisPiece {
 	blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 	gameboardWidthInBlocks := int(float64(gl.gameboard.Width) / blockSize)
 	centerX := gameboardWidthInBlocks / 2
-	
+
 	return gl.blockManager.CreateTetrisPiece(pieceType, centerX, 0)
 }
 
@@ -83,14 +83,14 @@ func (gl *GameLogic) TryRotatePiece(piece *TetrisPiece, pieceType PieceType) boo
 	if piece == nil {
 		return false
 	}
-	
+
 	// Store original rotation in case we need to revert
 	originalRotation := piece.Rotation
 	originalBlocks := make([]Block, len(piece.Blocks))
 	copy(originalBlocks, piece.Blocks)
-	
+
 	gl.blockManager.RotatePiece(piece, pieceType)
-	
+
 	// Check if rotation is valid
 	if !gl.IsValidPosition(piece, 0, 0) {
 		// Revert rotation
@@ -98,7 +98,7 @@ func (gl *GameLogic) TryRotatePiece(piece *TetrisPiece, pieceType PieceType) boo
 		piece.Blocks = originalBlocks
 		return false
 	}
-	
+
 	return true
 }
 
@@ -107,13 +107,13 @@ func (gl *GameLogic) TryMovePiece(piece *TetrisPiece, deltaX, deltaY int) bool {
 	if piece == nil {
 		return false
 	}
-	
+
 	if gl.IsValidPosition(piece, deltaX, deltaY) {
 		piece.X += deltaX
 		piece.Y += deltaY
 		return true
 	}
-	
+
 	return false
 }
 
@@ -132,30 +132,14 @@ func (gl *GameLogic) IsGameOver() bool {
 func (gl *GameLogic) CheckAndProcessReactions() {
 	for {
 		blocksToRemove := gl.findBlocksToRemove()
-		
+
 		if len(blocksToRemove) == 0 {
 			break // No more reactions possible
 		}
-		
-		// Debug output
-		fmt.Println("=== REMOVING BLOCKS ===")
-		for _, block := range blocksToRemove {
-			chargeStr := ""
-			switch block.BlockType {
-			case PositiveBlock:
-				chargeStr = "+"
-			case NegativeBlock:
-				chargeStr = "-"
-			case NeutralBlock:
-				chargeStr = "0"
-			}
-			fmt.Printf("  Block at (%d, %d) charge: %s\n", block.X, block.Y, chargeStr)
-		}
-		fmt.Println("=======================")
-		
+
 		// Remove the blocks
 		gl.removeBlocks(blocksToRemove)
-		
+
 		// Make remaining blocks fall
 		gl.processBlockFalling()
 	}
@@ -164,19 +148,19 @@ func (gl *GameLogic) CheckAndProcessReactions() {
 // findBlocksToRemove finds all blocks that should be removed based on the rules
 func (gl *GameLogic) findBlocksToRemove() []Block {
 	var blocksToRemove []Block
-	
+
 	// Group blocks by row (Y coordinate)
 	rowMap := make(map[int][]Block)
 	for _, block := range gl.placedBlocks {
 		rowMap[block.Y] = append(rowMap[block.Y], block)
 	}
-	
+
 	// Process each row
-	for y, rowBlocks := range rowMap {
+	for _, rowBlocks := range rowMap {
 		if len(rowBlocks) < 3 {
 			continue // Need at least 3 blocks
 		}
-		
+
 		// Sort blocks by X position
 		for i := 0; i < len(rowBlocks); i++ {
 			for j := i + 1; j < len(rowBlocks); j++ {
@@ -185,12 +169,10 @@ func (gl *GameLogic) findBlocksToRemove() []Block {
 				}
 			}
 		}
-		
-		fmt.Printf("Processing row %d with %d blocks\n", y, len(rowBlocks))
-		
+
 		// Find contiguous clusters (broken by gaps or neutral blocks)
 		clusters := gl.findClustersInRow(rowBlocks)
-		
+
 		// For each cluster, find zero-sum subsequences
 		for _, cluster := range clusters {
 			if len(cluster) >= 3 {
@@ -199,7 +181,7 @@ func (gl *GameLogic) findBlocksToRemove() []Block {
 			}
 		}
 	}
-	
+
 	return blocksToRemove
 }
 
@@ -207,7 +189,7 @@ func (gl *GameLogic) findBlocksToRemove() []Block {
 func (gl *GameLogic) findClustersInRow(rowBlocks []Block) [][]Block {
 	var clusters [][]Block
 	var currentCluster []Block
-	
+
 	for i, block := range rowBlocks {
 		// Check if this block breaks the cluster
 		if block.BlockType == NeutralBlock {
@@ -227,12 +209,12 @@ func (gl *GameLogic) findClustersInRow(rowBlocks []Block) [][]Block {
 			currentCluster = append(currentCluster, block)
 		}
 	}
-	
+
 	// Don't forget the last cluster
 	if len(currentCluster) >= 3 {
 		clusters = append(clusters, currentCluster)
 	}
-	
+
 	return clusters
 }
 
@@ -242,7 +224,7 @@ func (gl *GameLogic) findZeroSumSubsequence(cluster []Block) []Block {
 	for length := len(cluster); length >= 3; length-- {
 		for start := 0; start <= len(cluster)-length; start++ {
 			subsequence := cluster[start : start+length]
-			
+
 			// Calculate sum
 			sum := 0
 			for _, block := range subsequence {
@@ -253,14 +235,13 @@ func (gl *GameLogic) findZeroSumSubsequence(cluster []Block) []Block {
 					sum -= 1
 				}
 			}
-			
+
 			if sum == 0 {
-				fmt.Printf("Found zero-sum subsequence of length %d starting at position %d\n", length, start)
 				return subsequence
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -269,14 +250,14 @@ func (gl *GameLogic) removeBlocks(blocksToRemove []Block) {
 	if len(blocksToRemove) == 0 {
 		return
 	}
-	
+
 	// Create a map for fast lookup
 	removeMap := make(map[string]bool)
 	for _, block := range blocksToRemove {
 		key := fmt.Sprintf("%d,%d", block.X, block.Y)
 		removeMap[key] = true
 	}
-	
+
 	// Filter out the blocks to remove
 	var remainingBlocks []Block
 	for _, block := range gl.placedBlocks {
@@ -285,7 +266,7 @@ func (gl *GameLogic) removeBlocks(blocksToRemove []Block) {
 			remainingBlocks = append(remainingBlocks, block)
 		}
 	}
-	
+
 	gl.placedBlocks = remainingBlocks
 }
 
@@ -299,14 +280,14 @@ func (gl *GameLogic) processBlockFalling() {
 			}
 		}
 	}
-	
+
 	// Make each block fall
 	blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 	gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
-	
+
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
-		
+
 		// Find the lowest valid Y position
 		for newY := block.Y + 1; newY < gameboardHeightInBlocks; newY++ {
 			// Check if position is occupied
@@ -317,11 +298,11 @@ func (gl *GameLogic) processBlockFalling() {
 					break
 				}
 			}
-			
+
 			if occupied {
 				break
 			}
-			
+
 			block.Y = newY
 		}
 	}

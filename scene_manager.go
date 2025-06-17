@@ -23,6 +23,7 @@ type SceneManager struct {
 	gameScene    *GameScene
 	endScene     *EndScene
 }
+
 func (sm *SceneManager) Update() error {
 	return sm.currentScene.Update()
 }
@@ -41,7 +42,7 @@ func NewSceneManager() *SceneManager {
 
 	sm.titleScene = NewTitleScene(sm)
 	sm.gameScene = NewGameScene(sm)
-	sm.endScene = NewEndScene(sm, 0) 
+	sm.endScene = NewEndScene(sm, 0)
 
 	sm.currentScene = sm.titleScene
 

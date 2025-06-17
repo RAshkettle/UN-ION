@@ -51,12 +51,12 @@ func (t *TitleScene) Draw(screen *ebiten.Image) {
 		"WASD/Arrow Keys: Move piece",
 		"Space: Rotate piece",
 	}
-	
-	helpStartY := subtitleY + 40  // Much closer to subtitle
+
+	helpStartY := subtitleY + 40 // Much closer to subtitle
 	for i, control := range controls {
 		controlBounds, _ := text.Measure(control, t.helpFont, 0)
 		controlX := (w - int(controlBounds)) / 2
-		controlY := helpStartY + i*18  // Tighter spacing
+		controlY := helpStartY + i*18 // Tighter spacing
 
 		op3 := &text.DrawOptions{}
 		op3.GeoM.Translate(float64(controlX), float64(controlY))
@@ -114,7 +114,7 @@ func NewTitleScene(sm *SceneManager) *TitleScene {
 	helpFontSource, _ := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
 	helpFont := &text.GoTextFace{
 		Source: helpFontSource,
-		Size:   12,  // Reduced from 16 to 12
+		Size:   12, // Reduced from 16 to 12
 	}
 
 	return &TitleScene{

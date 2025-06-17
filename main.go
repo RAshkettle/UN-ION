@@ -10,7 +10,7 @@ import (
 func main() {
 	// Seed random number generator
 	rand.Seed(time.Now().UnixNano())
-	
+
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowTitle("Un-ion")
 	ebiten.SetWindowSize(320, 320)

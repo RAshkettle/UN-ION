@@ -11,12 +11,11 @@ import (
 //go:embed *
 var assets embed.FS
 
-var(
+var (
 	PositiveChargeSprite = loadImage("images/PositiveCharge.png")
 	NegativeChargeSprite = loadImage("images/NegativeCharge.png")
-	NeutralChargeSprite = loadImage("images/NeutralCharge.png")
+	NeutralChargeSprite  = loadImage("images/NeutralCharge.png")
 )
-
 
 func loadImage(filePath string) *ebiten.Image {
 	data, err := assets.ReadFile(filePath)

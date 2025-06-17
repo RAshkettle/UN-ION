@@ -22,7 +22,7 @@ func (ih *InputHandler) HandleInput(currentPiece *TetrisPiece, currentType Piece
 	if currentPiece == nil {
 		return
 	}
-	
+
 	// Handle piece rotation
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		ih.gameLogic.TryRotatePiece(currentPiece, currentType)
