@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // ExplosionCallback is called when blocks are removed to trigger particle effects
 type ExplosionCallback func(worldX, worldY float64, blockType BlockType)
@@ -428,4 +431,147 @@ func (gl *GameLogic) processBlockFalling() {
 			block.Y = newY
 		}
 	}
+}
+
+// UpdateWobblingBlocks updates the wobble animation for all wobbling blocks
+// Returns true if any blocks finished wobbling and should be removed
+func (gl *GameLogic) UpdateWobblingBlocks(deltaTime float64) bool {
+	anyBlocksFinished := false
+	
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		if block.IsWobbling {
+			// Update wobble time and phase
+			block.WobbleTime += deltaTime
+			block.WobblePhase += deltaTime * WobbleFrequency * 2 * math.Pi
+			
+			// Check if wobble duration is finished
+			if block.WobbleTime >= WobbleDuration {
+				anyBlocksFinished = true
+			}
+		}
+	}
+	
+	return anyBlocksFinished
+}
+
+// RemoveFinishedWobblingBlocks removes blocks that have finished wobbling
+func (gl *GameLogic) RemoveFinishedWobblingBlocks() int {
+	var blocksToRemove []Block
+	var remainingBlocks []Block
+	
+	// Separate blocks that finished wobbling from remaining blocks
+	for _, block := range gl.placedBlocks {
+		if block.IsWobbling && block.WobbleTime >= WobbleDuration {
+			blocksToRemove = append(blocksToRemove, block)
+		} else {
+			remainingBlocks = append(remainingBlocks, block)
+		}
+	}
+	
+	if len(blocksToRemove) == 0 {
+		return 0
+	}
+	
+	// Trigger audio callback for block breaking sound
+	if gl.audioCallback != nil {
+		gl.audioCallback(len(blocksToRemove))
+	}
+	
+	// Trigger explosion effects for removed blocks
+	for _, block := range blocksToRemove {
+		if gl.explosionCallback != nil {
+			blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
+			worldX := float64(gl.gameboard.X) + float64(block.X)*blockSize + blockSize/2
+			worldY := float64(gl.gameboard.Y) + float64(block.Y)*blockSize + blockSize/2
+			gl.explosionCallback(worldX, worldY, block.BlockType)
+		}
+	}
+	
+	// Update placed blocks
+	gl.placedBlocks = remainingBlocks
+	
+	return len(blocksToRemove)
+}
+
+// StartBlockWobbling marks blocks for wobbling instead of immediate removal
+func (gl *GameLogic) StartBlockWobbling(blocksToWobble []Block) {
+	if len(blocksToWobble) == 0 {
+		return
+	}
+	
+	// Create a map for fast lookup
+	wobbleMap := make(map[string]bool)
+	for _, block := range blocksToWobble {
+		key := fmt.Sprintf("%d,%d", block.X, block.Y)
+		wobbleMap[key] = true
+	}
+	
+	// Mark matching blocks as wobbling
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		key := fmt.Sprintf("%d,%d", block.X, block.Y)
+		if wobbleMap[key] && !block.IsWobbling {
+			block.IsWobbling = true
+			block.WobbleTime = 0
+			block.WobblePhase = 0
+		}
+	}
+}
+
+// CheckForNewReactions finds blocks that should start wobbling (only non-wobbling blocks)
+func (gl *GameLogic) CheckForNewReactions() int {
+	blocksToWobble := gl.findNonWobblingBlocksToRemove()
+	
+	if len(blocksToWobble) == 0 {
+		return 0
+	}
+	
+	// Start wobbling on these blocks
+	gl.StartBlockWobbling(blocksToWobble)
+	
+	// Calculate and return score
+	return gl.calculateReactionScore(len(blocksToWobble))
+}
+
+// findNonWobblingBlocksToRemove finds blocks that should be removed, excluding already wobbling blocks
+func (gl *GameLogic) findNonWobblingBlocksToRemove() []Block {
+	var blocksToRemove []Block
+
+	// Group non-wobbling blocks by row (Y coordinate)
+	rowMap := make(map[int][]Block)
+	for _, block := range gl.placedBlocks {
+		if !block.IsWobbling {
+			rowMap[block.Y] = append(rowMap[block.Y], block)
+		}
+	}
+
+	// Process each row (same logic as findBlocksToRemove but only for non-wobbling blocks)
+	for _, rowBlocks := range rowMap {
+		if len(rowBlocks) < 3 {
+			continue // Need at least 3 blocks
+		}
+
+		// Sort blocks by X coordinate for processing
+		for i := 0; i < len(rowBlocks); i++ {
+			for j := i + 1; j < len(rowBlocks); j++ {
+				if rowBlocks[i].X > rowBlocks[j].X {
+					rowBlocks[i], rowBlocks[j] = rowBlocks[j], rowBlocks[i]
+				}
+			}
+		}
+
+		// Find contiguous clusters (broken by gaps or neutral blocks)
+		clusters := gl.findClustersInRow(rowBlocks)
+
+		// For each cluster, find zero-sum subsequences
+		for _, cluster := range clusters {
+			if len(cluster) >= 3 {
+				zeroSumBlocks := gl.findZeroSumSubsequence(cluster)
+				blocksToRemove = append(blocksToRemove, zeroSumBlocks...)
+			}
+		}
+	}
+
+	return blocksToRemove
 }

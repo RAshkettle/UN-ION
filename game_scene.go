@@ -63,6 +63,9 @@ func (g *GameScene) Update() error {
 	// Update the fall timer
 	g.fallTimer.Update()
 
+	// Update wobbling blocks and handle chain reactions
+	g.updateWobblingBlocks(dt)
+
 	// Handle input
 	shouldPlacePiece := g.inputHandler.HandleInput(g.currentPiece, g.currentType)
 	
@@ -406,6 +409,33 @@ func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
 	text.Draw(screen, resumeText, fontFace, resumeX, resumeY, color.RGBA{200, 200, 200, 255})
 }
 
+// updateWobblingBlocks updates wobbling blocks and handles chain reactions
+func (g *GameScene) updateWobblingBlocks(dt float64) {
+	// Update wobbling animation
+	anyBlocksFinished := g.gameLogic.UpdateWobblingBlocks(dt)
+	
+	if anyBlocksFinished {
+		// Remove finished wobbling blocks
+		removedCount := g.gameLogic.RemoveFinishedWobblingBlocks()
+		
+		if removedCount > 0 {
+			// Make remaining blocks fall
+			g.gameLogic.processBlockFalling()
+			
+			// Check for new chain reactions
+			reactionScore := g.gameLogic.CheckForNewReactions()
+			if reactionScore > 0 {
+				g.CurrentScore += reactionScore
+				
+				// Add score popup for chain reaction
+				popupX := float64(g.gameboard.X + g.gameboard.Width/2)
+				popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
+				g.scorePopups.AddScorePopup(popupX, popupY, reactionScore)
+			}
+		}
+	}
+}
+
 // placePieceAndCheckReactions places a piece and handles reactions/scoring
 func (g *GameScene) placePieceAndCheckReactions() {
 	if g.currentPiece == nil {
@@ -415,8 +445,8 @@ func (g *GameScene) placePieceAndCheckReactions() {
 	// Place the piece
 	g.gameLogic.PlacePiece(g.currentPiece)
 
-	// Process any chain reactions from placed blocks and add score
-	reactionScore := g.gameLogic.CheckAndProcessReactions()
+	// Check for new reactions and start wobbling on blocks
+	reactionScore := g.gameLogic.CheckForNewReactions()
 	if reactionScore > 0 {
 		g.CurrentScore += reactionScore
 		

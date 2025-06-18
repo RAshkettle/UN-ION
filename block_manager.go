@@ -2,10 +2,18 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"union/assets"
 
 	"github.com/hajimehoshi/ebiten/v2"
+)
+
+// Wobble effect constants
+const (
+	WobbleDuration   = 0.8  // Duration in seconds before block is destroyed
+	WobbleIntensity  = 2.0  // Maximum wobble offset in pixels
+	WobbleFrequency  = 8.0  // Wobbles per second
 )
 
 // BlockType represents the three different charge types
@@ -19,8 +27,11 @@ const (
 
 // Block represents a single block in a Tetris piece
 type Block struct {
-	X, Y      int
-	BlockType BlockType
+	X, Y         int
+	BlockType    BlockType
+	IsWobbling   bool    // Whether this block is wobbling (about to be destroyed)
+	WobbleTime   float64 // Time this block has been wobbling
+	WobblePhase  float64 // Current wobble animation phase
 }
 
 // TetrisPiece represents a complete Tetris piece with multiple blocks
@@ -491,8 +502,23 @@ func (bm *BlockManager) DrawBlock(screen *ebiten.Image, block Block, worldX, wor
 	scaleY := blockSize / float64(sprite.Bounds().Dy())
 	op.GeoM.Scale(scaleX, scaleY)
 
-	// Position the block
-	op.GeoM.Translate(worldX, worldY)
+	// Apply wobble effect if block is wobbling
+	if block.IsWobbling {
+		// Calculate wobble offset based on phase
+		wobbleX := math.Sin(block.WobblePhase) * WobbleIntensity
+		wobbleY := math.Cos(block.WobblePhase * 1.3) * WobbleIntensity * 0.5 // Slightly different frequency for Y
+		
+		// Position with wobble offset
+		op.GeoM.Translate(worldX+wobbleX, worldY+wobbleY)
+		
+		// Add slight transparency to indicate impending destruction
+		wobbleProgress := block.WobbleTime / WobbleDuration
+		alpha := 1.0 - wobbleProgress*0.3 // Fade to 70% opacity
+		op.ColorM.Scale(1, 1, 1, alpha)
+	} else {
+		// Position the block normally
+		op.GeoM.Translate(worldX, worldY)
+	}
 
 	screen.DrawImage(sprite, op)
 }
