@@ -18,6 +18,7 @@ type GameScene struct {
 	particleSystem  *ParticleSystem
 	audioManager    *AudioManager
 	screenShake     *ScreenShake
+	scorePopups     *ScorePopupSystem
 	currentPiece    *TetrisPiece
 	currentType     PieceType
 	nextPiece       *TetrisPiece
@@ -45,6 +46,11 @@ func (g *GameScene) Update() error {
 	if g.screenShake != nil {
 		g.screenShake.Update(dt)
 	}
+	
+	// Update score popups
+	if g.scorePopups != nil {
+		g.scorePopups.Update(dt)
+	}
 
 	// Update the fall timer
 	g.fallTimer.Update()
@@ -63,7 +69,14 @@ func (g *GameScene) Update() error {
 
 				// Process any chain reactions from placed blocks and add score
 				reactionScore := g.gameLogic.CheckAndProcessReactions()
-				g.CurrentScore += reactionScore
+				if reactionScore > 0 {
+					g.CurrentScore += reactionScore
+					
+					// Add score popup at center of gameboard
+					popupX := float64(g.gameboard.X + g.gameboard.Width/2)
+					popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
+					g.scorePopups.AddScorePopup(popupX, popupY, reactionScore)
+				}
 
 				// Check for game over condition
 				if g.gameLogic.IsGameOver() {
@@ -96,6 +109,11 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	// Render particles on top of everything
 	if g.particleSystem != nil {
 		g.particleSystem.Draw(tempImage)
+	}
+	
+	// Render score popups on top of particles
+	if g.scorePopups != nil {
+		g.scorePopups.Draw(tempImage)
 	}
 	
 	// Apply shake offset when drawing to screen
@@ -184,6 +202,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	particleSystem := NewParticleSystem()
 	audioManager := NewAudioManager()
 	screenShake := NewScreenShake()
+	scorePopups := NewScorePopupSystem()
 	
 	// Initialize audio
 	err := audioManager.Initialize()
@@ -202,6 +221,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 		particleSystem: particleSystem,
 		audioManager:   audioManager,
 		screenShake:    screenShake,
+		scorePopups:    scorePopups,
 		fallTimer:      fallTimer,
 		CurrentScore:   0,
 		lastUpdateTime: time.Now(),
