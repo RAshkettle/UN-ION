@@ -24,6 +24,11 @@ const (
 	SparkFrequency   = 15.0 // Sparks per second
 )
 
+// Fall animation constants
+const (
+	FallSpeed = 4.0 // Blocks per second falling speed
+)
+
 // BlockType represents the three different charge types
 type BlockType int
 
@@ -44,6 +49,10 @@ type Block struct {
 	StormTime       float64 // Time this block has been in the storm
 	StormPhase      float64 // Current storm animation phase
 	SparkPhase      float64 // Current spark effect phase
+	IsFalling       bool    // Whether this block is currently falling smoothly
+	FallStartY      float64 // Starting Y position for fall animation
+	FallTargetY     float64 // Target Y position for fall animation
+	FallProgress    float64 // Fall animation progress (0.0 to 1.0)
 }
 
 // TetrisPiece represents a complete Tetris piece with multiple blocks

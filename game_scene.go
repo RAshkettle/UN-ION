@@ -152,8 +152,10 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 
 	// Draw placed blocks first
 	for _, block := range g.gameLogic.GetPlacedBlocks() {
-		worldX := float64(block.X) * blockSize
-		worldY := float64(block.Y) * blockSize
+		// Get the current render position (handles falling animation)
+		renderX, renderY := g.gameLogic.GetBlockRenderPosition(&block)
+		worldX := renderX * blockSize
+		worldY := renderY * blockSize
 		g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
 	}
 
@@ -225,8 +227,8 @@ func (g *GameScene) spawnNewPiece() {
 	// Generate new next piece
 	g.generateNextPiece()
 
-	// Check if the current piece can be placed at its spawn position
-	if g.currentPiece != nil && !g.gameLogic.IsValidPosition(g.currentPiece, 0, 0) {
+	// Check if the current piece can be placed at its spawn position (ignore neutral blocks for game over)
+	if g.currentPiece != nil && !g.gameLogic.IsValidPositionIgnoreNeutral(g.currentPiece, 0, 0) {
 		// Game over - new piece can't be placed
 		g.sceneManager.TransitionToEndScreen(g.CurrentScore)
 	}
@@ -411,18 +413,49 @@ func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
 
 // updateWobblingBlocks updates wobbling blocks and electrical storms, handles chain reactions
 func (g *GameScene) updateWobblingBlocks(dt float64) {
+	// Update falling block animations
+	anyBlocksLanded := g.gameLogic.UpdateFallingBlocks(dt)
+	
 	// Update wobbling animation
 	anyBlocksFinished := g.gameLogic.UpdateWobblingBlocks(dt)
 	
 	// Update electrical storm animation (visual effects only, no removal)
 	g.gameLogic.UpdateElectricalStorms(dt)
 	
+	// Update storm timers and generate neutral blocks
+	newNeutralBlocks := g.gameLogic.UpdateStormTimers(dt)
+	for _, neutralBlock := range newNeutralBlocks {
+		// Simply add the neutral block - it will fall with the normal falling process
+		g.gameLogic.AddNeutralBlock(neutralBlock)
+		
+		// Trigger dust effect for neutral block appearance
+		blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
+		worldX := float64(g.gameboard.X) + float64(neutralBlock.X)*blockSize + blockSize/2
+		worldY := float64(g.gameboard.Y) + float64(neutralBlock.Y)*blockSize + blockSize/2
+		g.particleSystem.AddDustCloud(worldX, worldY)
+	}
+	
+	// Process block falling for all blocks that need to fall
+	if len(newNeutralBlocks) > 0 {
+		g.gameLogic.processBlockFalling()
+	}
+	
+	// Check for new reactions when blocks finish landing
+	if anyBlocksLanded {
+		reactionScore := g.gameLogic.CheckForNewReactions()
+		g.gameLogic.CheckForElectricalStorms() // Check for new storms (visual only)
+		
+		if reactionScore > 0 {
+			g.CurrentScore += reactionScore
+		}
+	}
+	
 	// Handle finished wobbling blocks
 	if anyBlocksFinished {
 		removedCount := g.gameLogic.RemoveFinishedWobblingBlocks()
 		
 		if removedCount > 0 {
-			// Make remaining blocks fall
+			// Make remaining blocks fall with smooth animation
 			g.gameLogic.processBlockFalling()
 			
 			// Check for new chain reactions

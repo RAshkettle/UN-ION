@@ -3,7 +3,16 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/rand"
 )
+
+// Storm represents an active electrical storm in a column
+type Storm struct {
+	Column      int     // X coordinate of the storm column
+	Timer       float64 // Current timer value
+	NextDrop    float64 // Time until next neutral block drop (3-5 seconds)
+	IsActive    bool    // Whether this storm is currently active
+}
 
 // ExplosionCallback is called when blocks are removed to trigger particle effects
 type ExplosionCallback func(worldX, worldY float64, blockType BlockType)
@@ -26,6 +35,7 @@ type GameLogic struct {
 	audioCallback     AudioCallback
 	dustCallback      DustCallback
 	hardDropCallback  HardDropCallback
+	activeStorms      map[int]*Storm // Map of column X to Storm
 }
 
 // NewGameLogic creates a new game logic handler
@@ -34,6 +44,7 @@ func NewGameLogic(gameboard *Gameboard, blockManager *BlockManager) *GameLogic {
 		gameboard:    gameboard,
 		blockManager: blockManager,
 		placedBlocks: make([]Block, 0),
+		activeStorms: make(map[int]*Storm),
 	}
 }
 
@@ -75,9 +86,38 @@ func (gl *GameLogic) IsValidPosition(piece *TetrisPiece, offsetX, offsetY int) b
 			return false
 		}
 
-		// Check collision with placed blocks
+		// Check collision with placed blocks (use their logical position)
 		for _, placedBlock := range gl.placedBlocks {
 			if placedBlock.X == newX && placedBlock.Y == newY {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// IsValidPositionIgnoreNeutral checks if a piece can be placed at the given position, ignoring neutral blocks
+func (gl *GameLogic) IsValidPositionIgnoreNeutral(piece *TetrisPiece, offsetX, offsetY int) bool {
+	// Use the actual scaled block size that's being used for rendering
+	blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
+
+	// Calculate grid dimensions based on actual gameboard size and block size
+	gameboardWidthInBlocks := int(float64(gl.gameboard.Width) / blockSize)
+	gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
+
+	for _, block := range piece.Blocks {
+		newX := piece.X + block.X + offsetX
+		newY := piece.Y + block.Y + offsetY
+
+		// Check boundaries
+		if newX < 0 || newX >= gameboardWidthInBlocks || newY >= gameboardHeightInBlocks {
+			return false
+		}
+
+		// Check collision with placed blocks, but ignore neutral blocks
+		for _, placedBlock := range gl.placedBlocks {
+			if placedBlock.BlockType != NeutralBlock && placedBlock.X == newX && placedBlock.Y == newY {
 				return false
 			}
 		}
@@ -206,8 +246,9 @@ func (gl *GameLogic) CalculateDropPosition(piece *TetrisPiece) *TetrisPiece {
 // IsGameOver checks if any placed blocks have reached the top of the gameboard
 func (gl *GameLogic) IsGameOver() bool {
 	// Check if any placed blocks are at Y position 0 or negative (top of the screen)
+	// Ignore neutral blocks since they can spawn at the top
 	for _, block := range gl.placedBlocks {
-		if block.Y <= 0 {
+		if block.Y <= 0 && block.BlockType != NeutralBlock {
 			return true
 		}
 	}
@@ -395,9 +436,9 @@ func (gl *GameLogic) removeBlocks(blocksToRemove []Block) {
 	gl.placedBlocks = remainingBlocks
 }
 
-// processBlockFalling makes remaining blocks fall individually
+// processBlockFalling initiates smooth falling animation for blocks that need to fall
 func (gl *GameLogic) processBlockFalling() {
-	// Sort blocks by Y position (bottom to top)
+	// Sort blocks by Y position (bottom to top) to ensure correct fall order
 	for i := 0; i < len(gl.placedBlocks); i++ {
 		for j := i + 1; j < len(gl.placedBlocks); j++ {
 			if gl.placedBlocks[i].Y < gl.placedBlocks[j].Y {
@@ -406,29 +447,11 @@ func (gl *GameLogic) processBlockFalling() {
 		}
 	}
 
-	// Make each block fall
-	blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
-	gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
-
+	// Initiate falling animation for each block that can fall
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
-
-		// Find the lowest valid Y position
-		for newY := block.Y + 1; newY < gameboardHeightInBlocks; newY++ {
-			// Check if position is occupied
-			occupied := false
-			for j := range gl.placedBlocks {
-				if i != j && gl.placedBlocks[j].X == block.X && gl.placedBlocks[j].Y == newY {
-					occupied = true
-					break
-				}
-			}
-
-			if occupied {
-				break
-			}
-
-			block.Y = newY
+		if !block.IsFalling { // Only start falling for blocks not already falling
+			gl.StartBlockFall(block)
 		}
 	}
 }
@@ -493,6 +516,9 @@ func (gl *GameLogic) RemoveFinishedWobblingBlocks() int {
 	
 	// Clean up any invalid storms after removing blocks
 	gl.ClearInvalidStorms()
+	
+	// Update active storms after cleanup
+	gl.UpdateActiveStorms()
 	
 	return len(blocksToRemove)
 }
@@ -707,7 +733,7 @@ func (gl *GameLogic) ClearInvalidStorms() {
 		validStormMap[key] = true
 	}
 	
-	// Clear storm status from blocks that are no longer part of valid storms
+	// Clear storm status from blocks that are no longer part of a valid storms
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
 		if block.IsInStorm {
@@ -735,7 +761,207 @@ func (gl *GameLogic) CheckForElectricalStorms() int {
 	// Start electrical storm on these blocks (visual effect only)
 	gl.StartElectricalStorm(stormBlocks)
 	
+	// Update active storms map to manage timers
+	gl.UpdateActiveStorms()
+	
 	// No score for electrical storms since they don't destroy blocks
 	return 0
+}
+
+// generateStormTimer returns a random duration between 3-5 seconds for storm neutral block drops
+func (gl *GameLogic) generateStormTimer() float64 {
+	return 3.0 + rand.Float64()*2.0 // 3.0 to 5.0 seconds
+}
+
+// UpdateStormTimers updates all active storm timers and handles neutral block generation
+func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
+	var newNeutralBlocks []Block
+	
+	for _, storm := range gl.activeStorms {
+		if storm.IsActive {
+			storm.Timer += deltaTime
+			
+			// Check if it's time to drop a neutral block
+			if storm.Timer >= storm.NextDrop {
+				// Calculate grid dimensions
+				blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
+				gameboardWidthInBlocks := int(float64(gl.gameboard.Width) / blockSize)
+				centerX := gameboardWidthInBlocks / 2
+				
+				// Choose a random column, but avoid the center spawn area (centerX-1 to centerX+2)
+				var randomColumn int
+				attempts := 0
+				for attempts < 10 { // Prevent infinite loop
+					randomColumn = rand.Intn(gameboardWidthInBlocks)
+					// Avoid the tetris piece spawn area
+					if randomColumn < centerX-1 || randomColumn > centerX+2 {
+						break
+					}
+					attempts++
+				}
+				
+				// If we couldn't find a safe column, skip this spawn
+				if attempts >= 10 {
+					// Reset timer for next attempt
+					storm.Timer = 0
+					storm.NextDrop = gl.generateStormTimer()
+					continue
+				}
+				
+				// Create neutral block at top of random column with falling animation
+				neutralBlock := Block{
+					X:           randomColumn,
+					Y:           0, // Top of gameboard
+					BlockType:   NeutralBlock,
+					IsFalling:   true,
+					FallStartY:  0,
+					FallTargetY: 0, // Will be calculated in StartBlockFall
+					FallProgress: 0,
+				}
+				
+				// Check if the top position is free
+				positionFree := true
+				for _, placedBlock := range gl.placedBlocks {
+					if placedBlock.X == randomColumn && placedBlock.Y == 0 {
+						positionFree = false
+						break
+					}
+				}
+				
+				if positionFree {
+					newNeutralBlocks = append(newNeutralBlocks, neutralBlock)
+				}
+				
+				// Reset timer for next drop
+				storm.Timer = 0
+				storm.NextDrop = gl.generateStormTimer()
+			}
+		}
+	}
+	
+	return newNeutralBlocks
+}
+
+// AddNeutralBlock adds a neutral block to the placed blocks
+func (gl *GameLogic) AddNeutralBlock(block Block) {
+	gl.placedBlocks = append(gl.placedBlocks, block)
+}
+
+// UpdateActiveStorms updates the active storms map based on current storm blocks
+func (gl *GameLogic) UpdateActiveStorms() {
+	// Find which columns currently have active storms
+	stormColumns := make(map[int]bool)
+	
+	// Check each column for storm blocks
+	for _, block := range gl.placedBlocks {
+		if block.IsInStorm {
+			stormColumns[block.X] = true
+		}
+	}
+	
+	// Update storm map - start new storms and stop broken ones
+	for column := range stormColumns {
+		if _, exists := gl.activeStorms[column]; !exists {
+			// New storm started
+			gl.activeStorms[column] = &Storm{
+				Column:   column,
+				Timer:    0,
+				NextDrop: gl.generateStormTimer(),
+				IsActive: true,
+			}
+		}
+	}
+	
+	// Remove storms that are no longer active
+	for column, storm := range gl.activeStorms {
+		if !stormColumns[column] {
+			storm.IsActive = false
+			delete(gl.activeStorms, column)
+		}
+	}
+}
+
+// StartBlockFall calculates the target position and initiates falling animation for a block
+func (gl *GameLogic) StartBlockFall(block *Block) {
+	// Calculate how far this block should fall
+	blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
+	gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
+	
+	// Find the lowest valid Y position
+	targetY := block.Y
+	for newY := block.Y + 1; newY < gameboardHeightInBlocks; newY++ {
+		// Check if position is occupied by any other block
+		occupied := false
+		for _, placedBlock := range gl.placedBlocks {
+			// Skip checking against itself
+			if &placedBlock == block {
+				continue
+			}
+			
+			// Check against logical position for non-falling blocks
+			// or target position for falling blocks
+			checkY := placedBlock.Y
+			if placedBlock.IsFalling {
+				checkY = int(placedBlock.FallTargetY)
+			}
+			
+			if placedBlock.X == block.X && checkY == newY {
+				occupied = true
+				break
+			}
+		}
+		
+		if occupied {
+			break
+		}
+		
+		targetY = newY
+	}
+	
+	// Set up falling animation
+	block.IsFalling = true
+	block.FallStartY = float64(block.Y)
+	block.FallTargetY = float64(targetY)
+	block.FallProgress = 0
+}
+
+// UpdateFallingBlocks updates the falling animation for all falling blocks
+func (gl *GameLogic) UpdateFallingBlocks(deltaTime float64) bool {
+	anyBlocksLanded := false
+	
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		if block.IsFalling {
+			// Update fall progress
+			fallDistance := block.FallTargetY - block.FallStartY
+			if fallDistance > 0 {
+				block.FallProgress += deltaTime * FallSpeed / fallDistance
+				
+				// Check if fall is complete
+				if block.FallProgress >= 1.0 {
+					block.FallProgress = 1.0
+					block.Y = int(block.FallTargetY)
+					block.IsFalling = false
+					anyBlocksLanded = true
+				}
+			} else {
+				// No distance to fall, stop immediately
+				block.IsFalling = false
+				anyBlocksLanded = true
+			}
+		}
+	}
+	
+	return anyBlocksLanded
+}
+
+// GetBlockRenderPosition returns the current visual position of a block (accounting for falling animation)
+func (gl *GameLogic) GetBlockRenderPosition(block *Block) (float64, float64) {
+	if block.IsFalling {
+		// Interpolate between start and target positions
+		currentY := block.FallStartY + (block.FallTargetY-block.FallStartY)*block.FallProgress
+		return float64(block.X), currentY
+	}
+	return float64(block.X), float64(block.Y)
 }
 
