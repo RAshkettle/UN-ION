@@ -779,41 +779,51 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 
 	for _, storm := range gl.activeStorms {
 		if storm.IsActive {
-			storm.Timer += deltaTime
-
-			// Check if it's time to drop a neutral block
+			storm.Timer += deltaTime			// Check if it's time to drop a neutral block
 			if storm.Timer >= storm.NextDrop {
+				// Find the highest block in this storm column
+				highestStormBlock := gl.FindHighestStormBlock(storm.Column)
+				if highestStormBlock == nil {
+					// No storm blocks found, skip this spawn
+					storm.Timer = 0
+					storm.NextDrop = gl.generateStormTimer()
+					continue
+				}
+				
 				// Calculate grid dimensions
 				blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 				gameboardWidthInBlocks := int(float64(gl.gameboard.Width) / blockSize)
-
-				// Choose a random column instead of just the storm column
-				randomColumn := rand.Intn(gameboardWidthInBlocks)
-
-				// Create neutral block at top of random column with falling animation
+				
+				// Choose a random target column
+				targetColumn := rand.Intn(gameboardWidthInBlocks)
+				
+				// Create neutral block with arc animation starting from highest storm block
 				neutralBlock := Block{
-					X:            randomColumn,
-					Y:            0, // Top of gameboard
-					BlockType:    NeutralBlock,
-					IsFalling:    false, // Let processBlockFalling handle the falling setup
-					FallStartY:   0,
-					FallTargetY:  0,
-					FallProgress: 0,
+					X:         targetColumn,  // Final destination
+					Y:         0,            // Final Y position (top of board)
+					BlockType: NeutralBlock,
+					IsArcing:  true,        // Start with arc animation
+					IsFalling: false,       // Will fall after arc completes
 				}
-
-				// Check if the top position is free
+				
+				// Initialize arc animation from storm block to target position
+				gl.StartBlockArc(&neutralBlock, 
+					float64(highestStormBlock.X), float64(highestStormBlock.Y),
+					float64(targetColumn), 0.0)
+				
+				// Check if the target position will be free when arc completes
 				positionFree := true
 				for _, placedBlock := range gl.placedBlocks {
-					if placedBlock.X == randomColumn && placedBlock.Y == 0 {
+					if placedBlock.X == targetColumn && placedBlock.Y == 0 {
 						positionFree = false
 						break
 					}
 				}
-
+				
 				if positionFree {
 					newNeutralBlocks = append(newNeutralBlocks, neutralBlock)
 				}
-
+				
 				// Reset timer for next drop
 				storm.Timer = 0
 				storm.NextDrop = gl.generateStormTimer()
@@ -941,10 +951,112 @@ func (gl *GameLogic) UpdateFallingBlocks(deltaTime float64) bool {
 
 // GetBlockRenderPosition returns the current visual position of a block (accounting for falling animation)
 func (gl *GameLogic) GetBlockRenderPosition(block *Block) (float64, float64) {
-	if block.IsFalling {
+	if block.IsArcing {
+		x, y, _, _ := gl.GetBlockArcPosition(block)
+		return x, y
+	} else if block.IsFalling {
 		// Interpolate between start and target positions
 		currentY := block.FallStartY + (block.FallTargetY-block.FallStartY)*block.FallProgress
 		return float64(block.X), currentY
 	}
 	return float64(block.X), float64(block.Y)
+}
+
+// GetBlockRenderTransform returns position, rotation, and scale for rendering
+func (gl *GameLogic) GetBlockRenderTransform(block *Block) (float64, float64, float64, float64) {
+	if block.IsArcing {
+		return gl.GetBlockArcPosition(block)
+	} else if block.IsFalling {
+		// Interpolate between start and target positions for falling
+		currentY := block.FallStartY + (block.FallTargetY-block.FallStartY)*block.FallProgress
+		return float64(block.X), currentY, 0.0, 1.0
+	}
+	return float64(block.X), float64(block.Y), 0.0, 1.0
+}
+
+// FindHighestStormBlock finds the highest block in a storm column
+func (gl *GameLogic) FindHighestStormBlock(column int) *Block {
+	var highestBlock *Block
+	highestY := 999 // Start with a very high Y value (lower on screen)
+
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		if block.X == column && block.IsInStorm && block.Y < highestY {
+			highestY = block.Y
+			highestBlock = block
+		}
+	}
+
+	return highestBlock
+}
+
+// StartBlockArc initiates arc animation for a neutral block from storm to top
+func (gl *GameLogic) StartBlockArc(block *Block, startX, startY, targetX, targetY float64) {
+	block.IsArcing = true
+	block.ArcStartX = startX
+	block.ArcStartY = startY
+	block.ArcTargetX = targetX
+	block.ArcTargetY = targetY
+	block.ArcProgress = 0.0
+	block.ArcRotation = 0.0
+	block.ArcScale = MinArcScale
+}
+
+// GetBlockArcPosition returns the current arc position of a block
+func (gl *GameLogic) GetBlockArcPosition(block *Block) (float64, float64, float64, float64) {
+	if !block.IsArcing {
+		return float64(block.X), float64(block.Y), 0.0, 1.0 // x, y, rotation, scale
+	}
+
+	// Calculate current position along the arc
+	t := block.ArcProgress
+
+	// Linear interpolation for X
+	currentX := block.ArcStartX + (block.ArcTargetX-block.ArcStartX)*t
+
+	// Parabolic arc for Y (creates the arc effect)
+	linearY := block.ArcStartY + (block.ArcTargetY-block.ArcStartY)*t
+	arcOffset := ArcHeight * 4 * t * (1 - t) // Parabolic curve
+	currentY := linearY - arcOffset
+
+	// Rotation increases linearly
+	currentRotation := block.ArcRotation + MaxRotation*t
+
+	// Scale grows from min to max
+	currentScale := MinArcScale + (1.0-MinArcScale)*t
+
+	return currentX, currentY, currentRotation, currentScale
+}
+
+// UpdateArcingBlocks updates the arc animation for all arcing blocks
+func (gl *GameLogic) UpdateArcingBlocks(deltaTime float64) bool {
+	anyBlocksFinishedArcing := false
+	
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		if block.IsArcing {
+			// Update arc progress
+			block.ArcProgress += deltaTime * ArcSpeed
+			
+			// Check if arc is complete
+			if block.ArcProgress >= 1.0 {
+				block.ArcProgress = 1.0
+				
+				// Move block to final position
+				block.X = int(block.ArcTargetX)
+				block.Y = int(block.ArcTargetY)
+				
+				// End arc animation and start normal falling
+				block.IsArcing = false
+				block.ArcScale = 1.0
+				block.ArcRotation = 0.0
+				
+				// Start falling animation if needed
+				gl.StartBlockFall(block)
+				anyBlocksFinishedArcing = true
+			}
+		}
+	}
+	
+	return anyBlocksFinishedArcing
 }

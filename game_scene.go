@@ -152,11 +152,17 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 
 	// Draw placed blocks first
 	for _, block := range g.gameLogic.GetPlacedBlocks() {
-		// Get the current render position (handles falling animation)
-		renderX, renderY := g.gameLogic.GetBlockRenderPosition(&block)
+		// Get the current render transform (handles falling and arc animation)
+		renderX, renderY, rotation, scale := g.gameLogic.GetBlockRenderTransform(&block)
 		worldX := renderX * blockSize
 		worldY := renderY * blockSize
-		g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
+		
+		// Use transformed drawing for arcing blocks, normal drawing for others
+		if block.IsArcing || rotation != 0.0 || scale != 1.0 {
+			g.blockManager.DrawBlockTransformed(blocksImage, block, worldX, worldY, rotation, scale, blockSize)
+		} else {
+			g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
+		}
 	}
 
 	// Draw drop shadow (if different from current piece position)
@@ -413,6 +419,9 @@ func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
 
 // updateWobblingBlocks updates wobbling blocks and electrical storms, handles chain reactions
 func (g *GameScene) updateWobblingBlocks(dt float64) {
+	// Update arc animations for neutral blocks
+	anyBlocksFinishedArcing := g.gameLogic.UpdateArcingBlocks(dt)
+	
 	// Update falling block animations
 	anyBlocksLanded := g.gameLogic.UpdateFallingBlocks(dt)
 
@@ -440,8 +449,8 @@ func (g *GameScene) updateWobblingBlocks(dt float64) {
 		g.gameLogic.processBlockFalling()
 	}
 
-	// Check for new reactions when blocks finish landing
-	if anyBlocksLanded {
+	// Check for new reactions when blocks finish landing or arcing
+	if anyBlocksLanded || anyBlocksFinishedArcing {
 		reactionScore := g.gameLogic.CheckForNewReactions()
 		g.gameLogic.CheckForElectricalStorms() // Check for new storms (visual only)
 

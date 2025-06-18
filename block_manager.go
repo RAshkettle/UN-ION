@@ -29,6 +29,14 @@ const (
 	FallSpeed = 4.0 // Blocks per second falling speed
 )
 
+// Arc animation constants
+const (
+	ArcSpeed       = 4.0  // Arc animation speed (progress per second)
+	ArcHeight      = 3.0  // Maximum arc height in blocks above start position
+	MinArcScale    = 0.1  // Starting scale for arcing blocks
+	MaxRotation    = 360.0 // Maximum rotation in degrees during arc
+)
+
 // BlockType represents the three different charge types
 type BlockType int
 
@@ -49,10 +57,19 @@ type Block struct {
 	StormTime    float64 // Time this block has been in the storm
 	StormPhase   float64 // Current storm animation phase
 	SparkPhase   float64 // Current spark effect phase
-	IsFalling    bool    // Whether this block is currently falling smoothly
-	FallStartY   float64 // Starting Y position for fall animation
-	FallTargetY  float64 // Target Y position for fall animation
-	FallProgress float64 // Fall animation progress (0.0 to 1.0)
+	IsFalling       bool    // Whether this block is currently falling smoothly
+	FallStartY      float64 // Starting Y position for fall animation
+	FallTargetY     float64 // Target Y position for fall animation
+	FallProgress    float64 // Fall animation progress (0.0 to 1.0)
+	// Arc animation fields for neutral block spawning
+	IsArcing        bool    // Whether this block is currently arcing from storm to top
+	ArcStartX       float64 // Starting X position for arc animation
+	ArcStartY       float64 // Starting Y position for arc animation
+	ArcTargetX      float64 // Target X position for arc animation
+	ArcTargetY      float64 // Target Y position for arc animation (usually 0)
+	ArcProgress     float64 // Arc animation progress (0.0 to 1.0)
+	ArcRotation     float64 // Current rotation angle for arc animation
+	ArcScale        float64 // Current scale for arc animation (0.1 to 1.0)
 }
 
 // TetrisPiece represents a complete Tetris piece with multiple blocks
@@ -683,6 +700,66 @@ func (bm *BlockManager) RotatePiece(piece *TetrisPiece, pieceType PieceType) {
 	}
 
 	piece.Rotation = (piece.Rotation + 1) % 4
+}
+
+// DrawBlockTransformed renders a single block with rotation and scale at the specified position
+func (bm *BlockManager) DrawBlockTransformed(screen *ebiten.Image, block Block, worldX, worldY, rotation, scale, blockSize float64) {
+	sprite := bm.GetBlockSprite(block.BlockType)
+
+	op := &ebiten.DrawImageOptions{}
+
+	// Scale the sprite to match the block size and custom scale
+	scaleX := (blockSize * scale) / float64(sprite.Bounds().Dx())
+	scaleY := (blockSize * scale) / float64(sprite.Bounds().Dy())
+
+	// Apply rotation around center of block
+	centerX := float64(sprite.Bounds().Dx()) / 2
+	centerY := float64(sprite.Bounds().Dy()) / 2
+
+	// Translate to center, apply rotation and scale, then translate back
+	op.GeoM.Translate(-centerX, -centerY)
+	op.GeoM.Rotate(rotation * math.Pi / 180.0) // Convert degrees to radians
+	op.GeoM.Scale(scaleX, scaleY)
+
+	// Apply electrical storm effect (takes priority over normal wobble)
+	if block.IsInStorm {
+		// More intense wobble for electrical storms
+		stormX := math.Sin(block.StormPhase) * StormIntensity
+		stormY := math.Cos(block.StormPhase*1.7) * StormIntensity * 0.3
+
+		// Add random sparking motion
+		sparkOffset := math.Sin(block.SparkPhase) * 1.0
+		stormX += sparkOffset
+		stormY += math.Cos(block.SparkPhase*2.3) * 0.5
+
+		// Position with storm offset and center the scaled/rotated sprite
+		op.GeoM.Translate(worldX+stormX+(blockSize*scale)/2, worldY+stormY+(blockSize*scale)/2)
+
+		// Add electrical storm visual effects
+		flickerIntensity := 0.2 + 0.1*math.Sin(block.SparkPhase*2)
+		if block.BlockType == PositiveBlock {
+			op.ColorM.Scale(1.0+flickerIntensity, 1.0+flickerIntensity*0.5, 1.0-flickerIntensity*0.3, 1.0)
+		} else if block.BlockType == NegativeBlock {
+			op.ColorM.Scale(1.0-flickerIntensity*0.3, 1.0+flickerIntensity*0.5, 1.0+flickerIntensity, 1.0)
+		}
+	} else if block.IsWobbling {
+		// Normal wobble effect
+		wobbleX := math.Sin(block.WobblePhase) * WobbleIntensity
+		wobbleY := math.Cos(block.WobblePhase*1.3) * WobbleIntensity * 0.5
+
+		// Position with wobble offset and center the scaled/rotated sprite
+		op.GeoM.Translate(worldX+wobbleX+(blockSize*scale)/2, worldY+wobbleY+(blockSize*scale)/2)
+
+		// Add slight transparency to indicate impending destruction
+		wobbleProgress := block.WobbleTime / WobbleDuration
+		alpha := 1.0 - wobbleProgress*0.3
+		op.ColorM.Scale(1, 1, 1, alpha)
+	} else {
+		// Position the block normally and center the scaled/rotated sprite
+		op.GeoM.Translate(worldX+(blockSize*scale)/2, worldY+(blockSize*scale)/2)
+	}
+
+	screen.DrawImage(sprite, op)
 }
 
 // TestBlockDistribution tests the probability distribution of block types
