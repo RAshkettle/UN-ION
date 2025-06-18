@@ -54,16 +54,16 @@ func (t *TitleScene) drawTitleScreen(screen *ebiten.Image) {
 	op2.ColorScale.ScaleWithColor(color.RGBA{180, 180, 200, 255})
 	text.Draw(screen, subtitleText, t.subtitleFont, op2)
 
-	// Draw help prompt
+	// Draw help prompt - VERY VISIBLE
 	helpPrompt := "Press H for Help"
-	helpPromptBounds, _ := text.Measure(helpPrompt, t.helpFont, 0)
+	helpPromptBounds, _ := text.Measure(helpPrompt, t.subtitleFont, 0) // Use subtitle font (larger)
 	helpPromptX := (w - int(helpPromptBounds)) / 2
-	helpPromptY := subtitleY + 35
+	helpPromptY := subtitleY + 50 // More space from subtitle
 
 	op3 := &text.DrawOptions{}
 	op3.GeoM.Translate(float64(helpPromptX), float64(helpPromptY))
-	op3.ColorScale.ScaleWithColor(color.RGBA{150, 150, 170, 255})
-	text.Draw(screen, helpPrompt, t.helpFont, op3)
+	op3.ColorScale.ScaleWithColor(color.RGBA{255, 255, 100, 255}) // Bright yellow - very visible
+	text.Draw(screen, helpPrompt, t.subtitleFont, op3) // Use larger font
 
 	// Draw controls help - positioned right under the help prompt
 	controls := []string{
@@ -72,7 +72,7 @@ func (t *TitleScene) drawTitleScreen(screen *ebiten.Image) {
 		"Space: Rotate piece",
 	}
 
-	helpStartY := helpPromptY + 30
+	helpStartY := helpPromptY + 40 // Adjusted for new spacing
 	for i, control := range controls {
 		controlBounds, _ := text.Measure(control, t.helpFont, 0)
 		controlX := (w - int(controlBounds)) / 2

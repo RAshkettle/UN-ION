@@ -23,6 +23,7 @@ type AudioManager struct {
 	blockBreakPlayer      *audio.Player
 	swooshPlayer          *audio.Player
 	backgroundMusicPlayer *audio.Player
+	musicPaused           bool // Track if music is intentionally paused
 }
 
 // NewAudioManager creates a new audio manager
@@ -135,14 +136,15 @@ func (am *AudioManager) StartBackgroundMusic() {
 		return
 	}
 
+	am.musicPaused = false // Reset pause state
 	// Start playing the background music
 	am.backgroundMusicPlayer.Play()
 
 	// Set up looping by monitoring the player in a goroutine
 	go func() {
 		for {
-			// Check if the music has finished playing
-			if !am.backgroundMusicPlayer.IsPlaying() {
+			// Only restart if music has finished naturally (not paused)
+			if !am.backgroundMusicPlayer.IsPlaying() && !am.musicPaused {
 				// Rewind to start and play again
 				am.backgroundMusicPlayer.Rewind()
 				am.backgroundMusicPlayer.Play()
@@ -157,6 +159,7 @@ func (am *AudioManager) StartBackgroundMusic() {
 // StopBackgroundMusic stops the background music
 func (am *AudioManager) StopBackgroundMusic() {
 	if am.backgroundMusicPlayer != nil {
+		am.musicPaused = true // Set pause flag to prevent restart
 		am.backgroundMusicPlayer.Pause()
 	}
 }
@@ -164,6 +167,7 @@ func (am *AudioManager) StopBackgroundMusic() {
 // PauseBackgroundMusic pauses the background music
 func (am *AudioManager) PauseBackgroundMusic() {
 	if am.backgroundMusicPlayer != nil {
+		am.musicPaused = true // Set pause flag before pausing
 		am.backgroundMusicPlayer.Pause()
 	}
 }
@@ -171,6 +175,7 @@ func (am *AudioManager) PauseBackgroundMusic() {
 // ResumeBackgroundMusic resumes the background music
 func (am *AudioManager) ResumeBackgroundMusic() {
 	if am.backgroundMusicPlayer != nil {
+		am.musicPaused = false // Clear pause flag before resuming
 		am.backgroundMusicPlayer.Play()
 	}
 }
