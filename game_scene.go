@@ -207,7 +207,7 @@ func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {
 
 	// Position the preview to the right of the gameboard
 	previewX := float64(g.gameboard.X + g.gameboard.Width + 20) // 20 pixels margin
-	previewY := float64(g.gameboard.Y + 50)                     // 50 pixels from top of gameboard
+	previewY := float64(g.gameboard.Y + 100)                     // 66 pixels from top of gameboard (lowered by 16px)
 
 	// Scale the preview blocks to be smaller
 	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)

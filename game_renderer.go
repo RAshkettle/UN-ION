@@ -1,25 +1,43 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text"
-	"golang.org/x/image/font/basicfont"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
 // GameRenderer handles all rendering operations
 type GameRenderer struct {
 	gameboard    *Gameboard
 	blockManager *BlockManager
+	scoreFont    *text.GoTextFace
+	scoreLabelFont *text.GoTextFace
 }
 
 // NewGameRenderer creates a new game renderer
 func NewGameRenderer(gameboard *Gameboard, blockManager *BlockManager) *GameRenderer {
+	// Create fonts for score display
+	scoreFontSource, _ := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	scoreFont := &text.GoTextFace{
+		Source: scoreFontSource,
+		Size:   32, // Large, bold-looking font for the score number
+	}
+
+	scoreLabelFontSource, _ := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	scoreLabelFont := &text.GoTextFace{
+		Source: scoreLabelFontSource,
+		Size:   18, // Slightly larger font for the "SCORE" label
+	}
+
 	return &GameRenderer{
-		gameboard:    gameboard,
-		blockManager: blockManager,
+		gameboard:      gameboard,
+		blockManager:   blockManager,
+		scoreFont:      scoreFont,
+		scoreLabelFont: scoreLabelFont,
 	}
 }
 
@@ -118,14 +136,20 @@ func (gr *GameRenderer) RenderScore(screen *ebiten.Image, currentScore int) {
 	// Position score above the next piece preview area (top right)
 	margin := 10
 	scoreX := gr.gameboard.X + gr.gameboard.Width + 20 // Same X as preview area
-	scoreY := max(margin, gr.gameboard.Y - 10) // Position above the gameboard, closer to top
+	scoreY := max(margin, gr.gameboard.Y - 15) // Position above the gameboard, with more space for larger font
 
 	// Draw "SCORE" label
-	text.Draw(screen, "SCORE", basicfont.Face7x13, scoreX, scoreY, color.RGBA{200, 200, 255, 255})
+	labelOp := &text.DrawOptions{}
+	labelOp.GeoM.Translate(float64(scoreX), float64(scoreY))
+	labelOp.ColorScale.ScaleWithColor(color.RGBA{200, 200, 255, 255})
+	text.Draw(screen, "SCORE", gr.scoreLabelFont, labelOp)
 
-	// Draw the actual score value with better formatting
+	// Draw the actual score value with large, bold font
 	scoreText := fmt.Sprintf("%d", currentScore)
-	text.Draw(screen, scoreText, basicfont.Face7x13, scoreX, scoreY+15, color.RGBA{255, 255, 255, 255})
+	scoreOp := &text.DrawOptions{}
+	scoreOp.GeoM.Translate(float64(scoreX), float64(scoreY+25)) // More space for larger font
+	scoreOp.ColorScale.ScaleWithColor(color.RGBA{255, 255, 100, 255}) // Bright yellow for emphasis
+	text.Draw(screen, scoreText, gr.scoreFont, scoreOp)
 }
 
 // RenderDropShadow draws a translucent preview of where the piece will land
