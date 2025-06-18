@@ -78,16 +78,29 @@ func (ih *InputHandler) HandleInput(currentPiece *TetrisPiece, currentType Piece
 			// First press - try to move down, place if can't
 			if !ih.gameLogic.TryMovePiece(currentPiece, 0, 1) {
 				shouldPlace = true
+				// Calculate drop height for screen shake (minimum 1 to always have some effect)
+				dropHeight := 1
+				ih.triggerHardDropShake(dropHeight)
 			}
 			ih.downRepeatTimer = now.Add(50 * time.Millisecond) // Faster initial delay for down
 		} else if now.After(ih.downRepeatTimer) {
 			// Key held - try to move down, place if can't
 			if !ih.gameLogic.TryMovePiece(currentPiece, 0, 1) {
 				shouldPlace = true
+				// Calculate drop height for screen shake (minimum 1 to always have some effect)
+				dropHeight := 1
+				ih.triggerHardDropShake(dropHeight)
 			}
 			ih.downRepeatTimer = now.Add(50 * time.Millisecond) // Faster repeat for down
 		}
 	}
 
 	return shouldPlace
+}
+
+// triggerHardDropShake triggers screen shake for hard drops
+func (ih *InputHandler) triggerHardDropShake(dropHeight int) {
+	if ih.gameLogic.hardDropCallback != nil {
+		ih.gameLogic.hardDropCallback(dropHeight)
+	}
 }

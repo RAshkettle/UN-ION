@@ -332,6 +332,14 @@ func NewGameScene(sm *SceneManager) *GameScene {
 		particleSystem.AddDustCloud(worldX, worldY)
 	})
 
+	// Set up the hard drop callback for screen shake effects
+	gameLogic.SetHardDropCallback(func(dropHeight int) {
+		// Subtle screen shake for hard drops (much less intense than block explosions)
+		intensity := 1.0 + float64(dropHeight)*0.5 // Subtle intensity
+		duration := 0.1 // Short duration
+		screenShake.StartShake(intensity, duration)
+	})
+
 	// Generate initial next piece
 	g.generateNextPiece()
 

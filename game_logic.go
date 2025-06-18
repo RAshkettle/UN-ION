@@ -11,6 +11,9 @@ type AudioCallback func(blocksRemoved int)
 // DustCallback is called when pieces are placed to trigger dust cloud effects
 type DustCallback func(worldX, worldY float64)
 
+// HardDropCallback is called when pieces are hard dropped to trigger screen shake
+type HardDropCallback func(dropHeight int)
+
 // GameLogic handles game rules, collision detection, and piece management
 type GameLogic struct {
 	gameboard         *Gameboard
@@ -19,6 +22,7 @@ type GameLogic struct {
 	explosionCallback ExplosionCallback
 	audioCallback     AudioCallback
 	dustCallback      DustCallback
+	hardDropCallback  HardDropCallback
 }
 
 // NewGameLogic creates a new game logic handler
@@ -43,6 +47,11 @@ func (gl *GameLogic) SetAudioCallback(callback AudioCallback) {
 // SetDustCallback sets the callback function for dust cloud effects
 func (gl *GameLogic) SetDustCallback(callback DustCallback) {
 	gl.dustCallback = callback
+}
+
+// SetHardDropCallback sets the callback function for hard drop screen shake effects
+func (gl *GameLogic) SetHardDropCallback(callback HardDropCallback) {
+	gl.hardDropCallback = callback
 }
 
 // IsValidPosition checks if a piece can be placed at the given position
