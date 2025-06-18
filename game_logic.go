@@ -8,6 +8,9 @@ type ExplosionCallback func(worldX, worldY float64, blockType BlockType)
 // AudioCallback is called when blocks are removed to trigger audio effects
 type AudioCallback func(blocksRemoved int)
 
+// DustCallback is called when pieces are placed to trigger dust cloud effects
+type DustCallback func(worldX, worldY float64)
+
 // GameLogic handles game rules, collision detection, and piece management
 type GameLogic struct {
 	gameboard         *Gameboard
@@ -15,6 +18,7 @@ type GameLogic struct {
 	placedBlocks      []Block
 	explosionCallback ExplosionCallback
 	audioCallback     AudioCallback
+	dustCallback      DustCallback
 }
 
 // NewGameLogic creates a new game logic handler
@@ -34,6 +38,11 @@ func (gl *GameLogic) SetExplosionCallback(callback ExplosionCallback) {
 // SetAudioCallback sets the callback function for audio effects
 func (gl *GameLogic) SetAudioCallback(callback AudioCallback) {
 	gl.audioCallback = callback
+}
+
+// SetDustCallback sets the callback function for dust cloud effects
+func (gl *GameLogic) SetDustCallback(callback DustCallback) {
+	gl.dustCallback = callback
 }
 
 // IsValidPosition checks if a piece can be placed at the given position
@@ -78,6 +87,22 @@ func (gl *GameLogic) PlacePiece(piece *TetrisPiece) {
 			BlockType: block.BlockType,
 		}
 		gl.placedBlocks = append(gl.placedBlocks, placedBlock)
+	}
+	
+	// Trigger dust cloud effect at the center bottom of the piece
+	if gl.dustCallback != nil {
+		blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
+		// Find the bottom-most Y position of the piece
+		bottomY := piece.Y
+		for _, block := range piece.Blocks {
+			if piece.Y + block.Y > bottomY {
+				bottomY = piece.Y + block.Y
+			}
+		}
+		// Calculate world position at bottom center of piece
+		worldX := float64(gl.gameboard.X) + float64(piece.X)*blockSize + blockSize/2
+		worldY := float64(gl.gameboard.Y) + float64(bottomY+1)*blockSize // Just below the piece
+		gl.dustCallback(worldX, worldY)
 	}
 }
 

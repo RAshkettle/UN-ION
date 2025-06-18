@@ -140,12 +140,7 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	g.renderer.RenderScore(tempImage, g.CurrentScore)
 	g.renderNextPiecePreview(tempImage)
 	
-	// Render particles on top of everything
-	if g.particleSystem != nil {
-		g.particleSystem.Draw(tempImage)
-	}
-	
-	// Render score popups on top of particles
+	// Render score popups first
 	if g.scorePopups != nil {
 		g.scorePopups.Draw(tempImage)
 	}
@@ -154,6 +149,17 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(shakeX, shakeY)
 	screen.DrawImage(tempImage, op)
+	
+	// Render particles ABSOLUTELY LAST, directly to screen with shake offset
+	if g.particleSystem != nil {
+		particleOp := &ebiten.DrawImageOptions{}
+		particleOp.GeoM.Translate(shakeX, shakeY)
+		
+		// Create a temporary image just for particles
+		particleImage := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
+		g.particleSystem.Draw(particleImage)
+		screen.DrawImage(particleImage, particleOp)
+	}
 }
 
 // renderGameWithShadow renders the game state including drop shadow
@@ -319,6 +325,11 @@ func NewGameScene(sm *SceneManager) *GameScene {
 		intensity := float64(blocksRemoved) * 2.0 // 2 pixels per block
 		duration := 0.2 + float64(blocksRemoved)*0.05 // Longer shake for more blocks
 		screenShake.StartShake(intensity, duration)
+	})
+
+	// Set up the dust callback for piece placement effects
+	gameLogic.SetDustCallback(func(worldX, worldY float64) {
+		particleSystem.AddDustCloud(worldX, worldY)
 	})
 
 	// Generate initial next piece

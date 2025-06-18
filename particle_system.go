@@ -99,6 +99,48 @@ func (ps *ParticleSystem) AddExplosion(worldX, worldY float64, blockType BlockTy
 	}
 }
 
+// AddDustCloud creates a small dust cloud when a piece hits the bottom
+func (ps *ParticleSystem) AddDustCloud(worldX, worldY float64) {
+	numParticles := 8 + rand.Intn(6) // 8-13 particles (more visible)
+	
+	for i := 0; i < numParticles; i++ {
+		// Horizontal spread - wider spread for more visibility
+		angle := math.Pi + (rand.Float64()-0.5)*math.Pi*0.8 // Wider spread
+		speed := 50.0 + rand.Float64()*40.0 // Faster for more visibility
+		
+		vx := math.Cos(angle) * speed
+		vy := math.Sin(angle) * speed
+		
+		// Wider random offset from center
+		offsetX := (rand.Float64() - 0.5) * 40.0
+		
+		// Dust properties - more pronounced
+		maxLife := 0.8 + rand.Float64()*0.5 // Longer lived
+		size := 4.0 + rand.Float64()*6.0 // Bigger particles
+		
+		// White dust color for natural look
+		r := 0.9 + rand.Float64()*0.1 // Light gray/white
+		g := 0.9 + rand.Float64()*0.1 // Light gray/white
+		b := 0.9 + rand.Float64()*0.1 // Light gray/white
+		
+		particle := Particle{
+			X:       worldX + offsetX,
+			Y:       worldY,
+			VX:      vx,
+			VY:      vy,
+			Life:    maxLife,
+			MaxLife: maxLife,
+			Size:    size,
+			R:       r,
+			G:       g,
+			B:       b,
+			A:       0.9, // More opaque for visibility
+		}
+		
+		ps.particles = append(ps.particles, particle)
+	}
+}
+
 // Update updates all particles
 func (ps *ParticleSystem) Update(dt float64) {
 	// Update existing particles
