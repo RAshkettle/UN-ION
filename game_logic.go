@@ -8,10 +8,12 @@ import (
 
 // Storm represents an active electrical storm in a column
 type Storm struct {
-	Column   int     // X coordinate of the storm column
-	Timer    float64 // Current timer value
-	NextDrop float64 // Time until next neutral block drop (3-5 seconds)
-	IsActive bool    // Whether this storm is currently active
+	Column      int     // X coordinate of the storm column
+	Timer       float64 // Current timer value
+	NextDrop    float64 // Time until next neutral block drop (3-5 seconds)
+	IsActive    bool    // Whether this storm is currently active
+	IsWarning   bool    // Whether the warning ZAP sprite should be shown
+	WarningTime float64 // How long the warning has been active
 }
 
 // ExplosionCallback is called when blocks are removed to trigger particle effects
@@ -779,8 +781,25 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 
 	for _, storm := range gl.activeStorms {
 		if storm.IsActive {
-			storm.Timer += deltaTime			// Check if it's time to drop a neutral block
+			storm.Timer += deltaTime
+
+			// Check if we should start the warning animation
+			timeUntilSpawn := storm.NextDrop - storm.Timer
+			if timeUntilSpawn <= WarningDuration && !storm.IsWarning {
+				storm.IsWarning = true
+				storm.WarningTime = 0
+			}
+
+			// Update warning animation
+			if storm.IsWarning {
+				storm.WarningTime += deltaTime
+			}
+
+			// Check if it's time to drop a neutral block
 			if storm.Timer >= storm.NextDrop {
+				// End warning animation
+				storm.IsWarning = false
+				storm.WarningTime = 0
 				// Find the highest block in this storm column
 				highestStormBlock := gl.FindHighestStormBlock(storm.Column)
 				if highestStormBlock == nil {
@@ -789,14 +808,14 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 					storm.NextDrop = gl.generateStormTimer()
 					continue
 				}
-				
+
 				// Calculate grid dimensions
 				blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 				gameboardWidthInBlocks := int(float64(gl.gameboard.Width) / blockSize)
-				
+
 				// Choose a random target column
 				targetColumn := rand.Intn(gameboardWidthInBlocks)
-				
+
 				// Create neutral block with arc animation starting from highest storm block
 				neutralBlock := Block{
 					X:         targetColumn,  // Final destination
@@ -805,12 +824,12 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 					IsArcing:  true,        // Start with arc animation
 					IsFalling: false,       // Will fall after arc completes
 				}
-				
+
 				// Initialize arc animation from storm block to target position
-				gl.StartBlockArc(&neutralBlock, 
+				gl.StartBlockArc(&neutralBlock,
 					float64(highestStormBlock.X), float64(highestStormBlock.Y),
 					float64(targetColumn), 0.0)
-				
+
 				// Check if the target position will be free when arc completes
 				positionFree := true
 				for _, placedBlock := range gl.placedBlocks {
@@ -819,11 +838,11 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 						break
 					}
 				}
-				
+
 				if positionFree {
 					newNeutralBlocks = append(newNeutralBlocks, neutralBlock)
 				}
-				
+
 				// Reset timer for next drop
 				storm.Timer = 0
 				storm.NextDrop = gl.generateStormTimer()
@@ -1031,50 +1050,82 @@ func (gl *GameLogic) GetBlockArcPosition(block *Block) (float64, float64, float6
 // UpdateArcingBlocks updates the arc animation for all arcing blocks
 func (gl *GameLogic) UpdateArcingBlocks(deltaTime float64) bool {
 	anyBlocksFinishedArcing := false
-	
+
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
 		if block.IsArcing {
 			// Update arc progress
 			block.ArcProgress += deltaTime * ArcSpeed
-			
+
 			// Check if arc is complete
 			if block.ArcProgress >= 1.0 {
 				block.ArcProgress = 1.0
-				
+
 				// Calculate final resting position (where the block should land)
 				blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 				gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
-				
+
 				targetColumn := int(block.ArcTargetX)
 				finalY := gameboardHeightInBlocks - 1 // Start from bottom
-				
+
 				// Find the highest occupied position in the target column
 				for _, placedBlock := range gl.placedBlocks {
 					if &placedBlock != block && placedBlock.X == targetColumn && placedBlock.Y < finalY {
 						finalY = placedBlock.Y - 1
 					}
 				}
-				
+
 				// Ensure we don't go above the board
 				if finalY < 0 {
 					finalY = 0
 				}
-				
+
 				// Move block directly to final resting position
 				block.X = targetColumn
 				block.Y = finalY
-				
+
 				// End arc animation
 				block.IsArcing = false
 				block.ArcScale = 1.0
 				block.ArcRotation = 0.0
-				
+
 				// No falling animation needed - block is already in place
 				anyBlocksFinishedArcing = true
 			}
 		}
 	}
-	
+
 	return anyBlocksFinishedArcing
+}
+
+// GetStormWarnings returns information about active storm warnings for rendering
+func (gl *GameLogic) GetStormWarnings() []struct {
+	Column        int
+	WarningTime   float64
+	HighestBlockY int
+} {
+	var warnings []struct {
+		Column        int
+		WarningTime   float64
+		HighestBlockY int
+	}
+
+	for _, storm := range gl.activeStorms {
+		if storm.IsWarning {
+			highestBlock := gl.FindHighestStormBlock(storm.Column)
+			if highestBlock != nil {
+				warnings = append(warnings, struct {
+					Column        int
+					WarningTime   float64
+					HighestBlockY int
+				}{
+					Column:        storm.Column,
+					WarningTime:   storm.WarningTime,
+					HighestBlockY: highestBlock.Y,
+				})
+			}
+		}
+	}
+
+	return warnings
 }

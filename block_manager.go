@@ -37,6 +37,13 @@ const (
 	MaxRotation    = 360.0 // Maximum rotation in degrees during arc
 )
 
+// Warning animation constants
+const (
+	WarningDuration   = 1.0  // Duration in seconds before spawn
+	WarningIntensity  = 3.0  // Maximum shake offset in pixels
+	WarningFrequency  = 20.0 // Shakes per second
+)
+
 // BlockType represents the three different charge types
 type BlockType int
 
@@ -758,6 +765,53 @@ func (bm *BlockManager) DrawBlockTransformed(screen *ebiten.Image, block Block, 
 		// Position the block normally and center the scaled/rotated sprite
 		op.GeoM.Translate(worldX+(blockSize*scale)/2, worldY+(blockSize*scale)/2)
 	}
+
+	screen.DrawImage(sprite, op)
+}
+
+// DrawWarningSprite renders a shaking ZAP sprite at the specified position
+func (bm *BlockManager) DrawWarningSprite(screen *ebiten.Image, worldX, worldY, warningTime, blockSize float64, column int, gameboardWidth int) {
+	sprite := assets.ZapSprite
+	if sprite == nil {
+		return
+	}
+
+	op := &ebiten.DrawImageOptions{}
+
+	// Scale the sprite to match the block size
+	scaleX := blockSize / float64(sprite.Bounds().Dx())
+	scaleY := blockSize / float64(sprite.Bounds().Dy())
+	op.GeoM.Scale(scaleX, scaleY)
+
+	// Add shake/wobble effect
+	shakePhase := warningTime * WarningFrequency * 2 * math.Pi
+	shakeX := math.Sin(shakePhase) * WarningIntensity
+	shakeY := math.Cos(shakePhase * 1.3) * WarningIntensity * 0.7
+
+	// Add secondary wobble for more dynamic movement
+	wobblePhase := warningTime * WarningFrequency * 1.5 * math.Pi
+	wobbleX := math.Sin(wobblePhase) * WarningIntensity * 0.5
+	wobbleY := math.Cos(wobblePhase * 0.8) * WarningIntensity * 0.3
+
+	// Calculate grid dimensions to determine board center
+	gameboardWidthInBlocks := int(float64(gameboardWidth) / blockSize)
+	boardCenter := gameboardWidthInBlocks / 2
+
+	// Position sprite on the opposite side if storm is on right half
+	var offsetX float64
+	if column >= boardCenter {
+		// Storm is on right half, position sprite to the left
+		offsetX = -blockSize * 0.3 // Position towards top-left
+	} else {
+		// Storm is on left half, position sprite to the right
+		offsetX = blockSize * 0.7 // Position towards top-right
+	}
+	offsetY := blockSize * 0.1
+	
+	op.GeoM.Translate(worldX+offsetX+shakeX+wobbleX, worldY+offsetY+shakeY+wobbleY)
+
+	// Add slight color enhancement to make it more visible (no pulsing)
+	op.ColorM.Scale(1.2, 1.1, 0.9, 1.0) // Slightly yellow/orange tint with full opacity
 
 	screen.DrawImage(sprite, op)
 }

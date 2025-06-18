@@ -183,6 +183,14 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 		}
 	}
 
+	// Draw storm warning sprites on top of everything
+	warnings := g.gameLogic.GetStormWarnings()
+	for _, warning := range warnings {
+		worldX := float64(warning.Column) * blockSize
+		worldY := float64(warning.HighestBlockY) * blockSize
+		g.blockManager.DrawWarningSprite(blocksImage, worldX, worldY, warning.WarningTime, blockSize, warning.Column, g.gameboard.Width)
+	}
+
 	// Draw all blocks on top of the gameboard
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(g.gameboard.X), float64(g.gameboard.Y))
