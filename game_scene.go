@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image/color"
 	"math/rand"
 	"time"
 
@@ -102,7 +103,14 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	// Create a temporary image for shaken content
 	tempImage := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
 	
-	g.renderer.Render(tempImage, g.gameLogic.GetPlacedBlocks(), g.currentPiece)
+	// Calculate drop shadow for current piece
+	var shadowPiece *TetrisPiece
+	if g.currentPiece != nil {
+		shadowPiece = g.gameLogic.CalculateDropPosition(g.currentPiece)
+	}
+	
+	// Render game with drop shadow
+	g.renderGameWithShadow(tempImage, shadowPiece)
 	g.renderer.RenderScore(tempImage, g.CurrentScore)
 	g.renderNextPiecePreview(tempImage)
 	
@@ -120,6 +128,51 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(shakeX, shakeY)
 	screen.DrawImage(tempImage, op)
+}
+
+// renderGameWithShadow renders the game state including drop shadow
+func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *TetrisPiece) {
+	// Dark background
+	screen.Fill(color.RGBA{15, 20, 30, 255})
+
+	// Draw the gameboard with shader effect FIRST (background)
+	g.gameboard.Draw(screen)
+
+	// Calculate block size for rendering
+	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
+
+	// Create a temporary image for all blocks
+	blocksImage := ebiten.NewImage(g.gameboard.Width, g.gameboard.Height)
+
+	// Draw placed blocks first
+	for _, block := range g.gameLogic.GetPlacedBlocks() {
+		worldX := float64(block.X) * blockSize
+		worldY := float64(block.Y) * blockSize
+		g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
+	}
+
+	// Draw drop shadow (if different from current piece position)
+	if shadowPiece != nil && g.currentPiece != nil && shadowPiece.Y > g.currentPiece.Y {
+		for _, block := range shadowPiece.Blocks {
+			worldX := float64(shadowPiece.X+block.X) * blockSize
+			worldY := float64(shadowPiece.Y+block.Y) * blockSize
+			g.blockManager.DrawShadowBlock(blocksImage, block, worldX, worldY, blockSize)
+		}
+	}
+
+	// Draw current piece on top of shadow and placed blocks
+	if g.currentPiece != nil {
+		for _, block := range g.currentPiece.Blocks {
+			worldX := float64(g.currentPiece.X+block.X) * blockSize
+			worldY := float64(g.currentPiece.Y+block.Y) * blockSize
+			g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
+		}
+	}
+
+	// Draw all blocks on top of the gameboard
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(g.gameboard.X), float64(g.gameboard.Y))
+	screen.DrawImage(blocksImage, op)
 }
 
 func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {

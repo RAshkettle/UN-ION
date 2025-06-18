@@ -497,6 +497,40 @@ func (bm *BlockManager) DrawBlock(screen *ebiten.Image, block Block, worldX, wor
 	screen.DrawImage(sprite, op)
 }
 
+// DrawShadowBlock renders a translucent shadow block at the specified world coordinates
+func (bm *BlockManager) DrawShadowBlock(screen *ebiten.Image, block Block, worldX, worldY, blockSize float64) {
+	var sprite *ebiten.Image
+
+	switch block.BlockType {
+	case PositiveBlock:
+		sprite = assets.PositiveChargeSprite
+	case NegativeBlock:
+		sprite = assets.NegativeChargeSprite
+	case NeutralBlock:
+		sprite = assets.NeutralChargeSprite
+	default:
+		// Fallback for unknown block types
+		sprite = assets.NeutralChargeSprite
+	}
+
+	if sprite != nil {
+		op := &ebiten.DrawImageOptions{}
+		// Scale the sprite to fit the block size
+		spriteWidth := float64(sprite.Bounds().Dx())
+		spriteHeight := float64(sprite.Bounds().Dy())
+		scaleX := blockSize / spriteWidth
+		scaleY := blockSize / spriteHeight
+		op.GeoM.Scale(scaleX, scaleY)
+		op.GeoM.Translate(worldX, worldY)
+
+		// Make it translucent and darker for shadow effect
+		op.ColorScale.ScaleAlpha(0.4)        // 40% opacity
+		op.ColorScale.Scale(0.5, 0.5, 0.5, 1.0) // Darker
+
+		screen.DrawImage(sprite, op)
+	}
+}
+
 // DrawTetrisPiece renders a complete Tetris piece
 func (bm *BlockManager) DrawTetrisPiece(screen *ebiten.Image, piece *TetrisPiece, screenWidth, screenHeight int) {
 	blockSize := bm.GetScaledBlockSize(screenWidth, screenHeight)
@@ -516,7 +550,7 @@ func (bm *BlockManager) RotatePiece(piece *TetrisPiece, pieceType PieceType) {
 		// For O piece, we want to rotate the charge pattern, not the physical positions
 		newRotation := (piece.Rotation + 1) % 4
 		newPositions := bm.GetPiecePositions(pieceType, newRotation)
-		
+
 		if len(newPositions) == len(piece.Blocks) {
 			for i, pos := range newPositions {
 				piece.Blocks[i].X = pos.X
@@ -542,26 +576,34 @@ func (bm *BlockManager) RotatePiece(piece *TetrisPiece, pieceType PieceType) {
 	minX, maxX := piece.Blocks[0].X, piece.Blocks[0].X
 	minY, maxY := piece.Blocks[0].Y, piece.Blocks[0].Y
 	for _, block := range piece.Blocks {
-		if block.X < minX { minX = block.X }
-		if block.X > maxX { maxX = block.X }
-		if block.Y < minY { minY = block.Y }
-		if block.Y > maxY { maxY = block.Y }
+		if block.X < minX {
+			minX = block.X
+		}
+		if block.X > maxX {
+			maxX = block.X
+		}
+		if block.Y < minY {
+			minY = block.Y
+		}
+		if block.Y > maxY {
+			maxY = block.Y
+		}
 	}
-	centerX := float64(minX + maxX) / 2.0
-	centerY := float64(minY + maxY) / 2.0
+	centerX := float64(minX+maxX) / 2.0
+	centerY := float64(minY+maxY) / 2.0
 
 	// Rotate each block around the center
 	for i := range piece.Blocks {
 		block := &piece.Blocks[i]
-		
+
 		// Translate to origin
 		relX := float64(block.X) - centerX
 		relY := float64(block.Y) - centerY
-		
+
 		// Rotate 90 degrees clockwise: (x,y) -> (y,-x)
 		newRelX := relY
 		newRelY := -relX
-		
+
 		// Translate back and round to nearest integer
 		block.X = int(newRelX + centerX + 0.5)
 		block.Y = int(newRelY + centerY + 0.5)

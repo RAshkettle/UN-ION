@@ -135,6 +135,37 @@ func (gl *GameLogic) TryMovePiece(piece *TetrisPiece, deltaX, deltaY int) bool {
 	return false
 }
 
+// CalculateDropPosition calculates where a piece would land if dropped straight down
+func (gl *GameLogic) CalculateDropPosition(piece *TetrisPiece) *TetrisPiece {
+	if piece == nil {
+		return nil
+	}
+
+	// Create a copy of the piece
+	shadowPiece := &TetrisPiece{
+		X:        piece.X,
+		Y:        piece.Y,
+		Rotation: piece.Rotation,
+		Blocks:   make([]Block, len(piece.Blocks)),
+	}
+
+	// Copy all blocks
+	for i, block := range piece.Blocks {
+		shadowPiece.Blocks[i] = Block{
+			X:         block.X,
+			Y:         block.Y,
+			BlockType: block.BlockType,
+		}
+	}
+
+	// Move the shadow piece down until it can't move anymore
+	for gl.IsValidPosition(shadowPiece, 0, 1) {
+		shadowPiece.Y++
+	}
+
+	return shadowPiece
+}
+
 // IsGameOver checks if any placed blocks have reached the top of the gameboard
 func (gl *GameLogic) IsGameOver() bool {
 	// Check if any placed blocks are at Y position 0 or negative (top of the screen)
@@ -150,7 +181,7 @@ func (gl *GameLogic) IsGameOver() bool {
 // Returns the total score earned from all reactions
 func (gl *GameLogic) CheckAndProcessReactions() int {
 	totalScore := 0
-	
+
 	for {
 		blocksToRemove := gl.findBlocksToRemove()
 
@@ -168,7 +199,7 @@ func (gl *GameLogic) CheckAndProcessReactions() int {
 		// Make remaining blocks fall
 		gl.processBlockFalling()
 	}
-	
+
 	return totalScore
 }
 
@@ -178,14 +209,14 @@ func (gl *GameLogic) calculateReactionScore(blocksRemoved int) int {
 	if blocksRemoved < 4 {
 		return 0 // No score for less than 4 blocks
 	}
-	
+
 	score := 10 // Base score for 4 blocks
-	
+
 	// For each block beyond 4, multiply by 2
 	for i := 4; i < blocksRemoved; i++ {
 		score *= 2
 	}
-	
+
 	return score
 }
 
