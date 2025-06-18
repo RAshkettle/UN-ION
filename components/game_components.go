@@ -89,15 +89,15 @@ func (gc *GameComponents) setupEventListeners() {
 	// Blocks removed event - triggers particles, audio, and screen shake
 	gc.EventSystem.Subscribe(EventBlocksRemoved, func(event GameEvent) {
 		data := event.Data.(BlocksRemovedData)
-		
+
 		// Trigger audio
 		gc.AudioManager.PlayBlockBreakMultiple(data.Count)
-		
+
 		// Trigger screen shake
 		intensity := float64(data.Count) * 2.0
 		duration := 0.2 + float64(data.Count)*0.05
 		gc.ScreenShake.StartShake(intensity, duration)
-		
+
 		// Trigger particles for each position
 		for _, pos := range data.Positions {
 			gc.ParticleSystem.AddExplosion(pos.X, pos.Y, NeutralBlock) // Default block type

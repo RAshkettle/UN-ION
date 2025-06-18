@@ -8,10 +8,10 @@ import (
 
 // Storm represents an active electrical storm in a column
 type Storm struct {
-	Column      int     // X coordinate of the storm column
-	Timer       float64 // Current timer value
-	NextDrop    float64 // Time until next neutral block drop (3-5 seconds)
-	IsActive    bool    // Whether this storm is currently active
+	Column   int     // X coordinate of the storm column
+	Timer    float64 // Current timer value
+	NextDrop float64 // Time until next neutral block drop (3-5 seconds)
+	IsActive bool    // Whether this storm is currently active
 }
 
 // ExplosionCallback is called when blocks are removed to trigger particle effects
@@ -140,14 +140,14 @@ func (gl *GameLogic) PlacePiece(piece *TetrisPiece) {
 		}
 		gl.placedBlocks = append(gl.placedBlocks, placedBlock)
 	}
-	
+
 	// Trigger dust cloud effect at the center bottom of the piece
 	if gl.dustCallback != nil {
 		blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 		// Find the bottom-most Y position of the piece
 		bottomY := piece.Y
 		for _, block := range piece.Blocks {
-			if piece.Y + block.Y > bottomY {
+			if piece.Y+block.Y > bottomY {
 				bottomY = piece.Y + block.Y
 			}
 		}
@@ -460,21 +460,21 @@ func (gl *GameLogic) processBlockFalling() {
 // Returns true if any blocks finished wobbling and should be removed
 func (gl *GameLogic) UpdateWobblingBlocks(deltaTime float64) bool {
 	anyBlocksFinished := false
-	
+
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
 		if block.IsWobbling {
 			// Update wobble time and phase
 			block.WobbleTime += deltaTime
 			block.WobblePhase += deltaTime * WobbleFrequency * 2 * math.Pi
-			
+
 			// Check if wobble duration is finished
 			if block.WobbleTime >= WobbleDuration {
 				anyBlocksFinished = true
 			}
 		}
 	}
-	
+
 	return anyBlocksFinished
 }
 
@@ -482,7 +482,7 @@ func (gl *GameLogic) UpdateWobblingBlocks(deltaTime float64) bool {
 func (gl *GameLogic) RemoveFinishedWobblingBlocks() int {
 	var blocksToRemove []Block
 	var remainingBlocks []Block
-	
+
 	// Separate blocks that finished wobbling from remaining blocks
 	for _, block := range gl.placedBlocks {
 		if block.IsWobbling && block.WobbleTime >= WobbleDuration {
@@ -491,16 +491,16 @@ func (gl *GameLogic) RemoveFinishedWobblingBlocks() int {
 			remainingBlocks = append(remainingBlocks, block)
 		}
 	}
-	
+
 	if len(blocksToRemove) == 0 {
 		return 0
 	}
-	
+
 	// Trigger audio callback for block breaking sound
 	if gl.audioCallback != nil {
 		gl.audioCallback(len(blocksToRemove))
 	}
-	
+
 	// Trigger explosion effects for removed blocks
 	for _, block := range blocksToRemove {
 		if gl.explosionCallback != nil {
@@ -510,16 +510,16 @@ func (gl *GameLogic) RemoveFinishedWobblingBlocks() int {
 			gl.explosionCallback(worldX, worldY, block.BlockType)
 		}
 	}
-	
+
 	// Update placed blocks
 	gl.placedBlocks = remainingBlocks
-	
+
 	// Clean up any invalid storms after removing blocks
 	gl.ClearInvalidStorms()
-	
+
 	// Update active storms after cleanup
 	gl.UpdateActiveStorms()
-	
+
 	return len(blocksToRemove)
 }
 
@@ -528,14 +528,14 @@ func (gl *GameLogic) StartBlockWobbling(blocksToWobble []Block) {
 	if len(blocksToWobble) == 0 {
 		return
 	}
-	
+
 	// Create a map for fast lookup
 	wobbleMap := make(map[string]bool)
 	for _, block := range blocksToWobble {
 		key := fmt.Sprintf("%d,%d", block.X, block.Y)
 		wobbleMap[key] = true
 	}
-	
+
 	// Mark matching blocks as wobbling
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
@@ -551,14 +551,14 @@ func (gl *GameLogic) StartBlockWobbling(blocksToWobble []Block) {
 // CheckForNewReactions finds blocks that should start wobbling (only non-wobbling blocks)
 func (gl *GameLogic) CheckForNewReactions() int {
 	blocksToWobble := gl.findNonWobblingBlocksToRemove()
-	
+
 	if len(blocksToWobble) == 0 {
 		return 0
 	}
-	
+
 	// Start wobbling on these blocks
 	gl.StartBlockWobbling(blocksToWobble)
-	
+
 	// Calculate and return score
 	return gl.calculateReactionScore(len(blocksToWobble))
 }
@@ -679,14 +679,14 @@ func (gl *GameLogic) StartElectricalStorm(stormBlocks []Block) {
 	if len(stormBlocks) == 0 {
 		return
 	}
-	
+
 	// Create a map for fast lookup
 	stormMap := make(map[string]bool)
 	for _, block := range stormBlocks {
 		key := fmt.Sprintf("%d,%d", block.X, block.Y)
 		stormMap[key] = true
 	}
-	
+
 	// Mark matching blocks as being in storm (or refresh existing storm blocks)
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
@@ -715,7 +715,7 @@ func (gl *GameLogic) UpdateElectricalStorms(deltaTime float64) {
 			block.StormTime += deltaTime
 			block.StormPhase += deltaTime * StormFrequency * 2 * math.Pi
 			block.SparkPhase += deltaTime * SparkFrequency * 2 * math.Pi
-			
+
 			// Storm effects continue indefinitely (until block is removed by other means)
 		}
 	}
@@ -725,14 +725,14 @@ func (gl *GameLogic) UpdateElectricalStorms(deltaTime float64) {
 func (gl *GameLogic) ClearInvalidStorms() {
 	// Find all blocks that should currently be in storms
 	validStormBlocks := gl.findVerticalElectricalStorms()
-	
+
 	// Create a map for fast lookup of valid storm positions
 	validStormMap := make(map[string]bool)
 	for _, block := range validStormBlocks {
 		key := fmt.Sprintf("%d,%d", block.X, block.Y)
 		validStormMap[key] = true
 	}
-	
+
 	// Clear storm status from blocks that are no longer part of a valid storms
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
@@ -753,17 +753,17 @@ func (gl *GameLogic) ClearInvalidStorms() {
 // Returns 0 since storms are visual effects only (no points for non-destructive effects)
 func (gl *GameLogic) CheckForElectricalStorms() int {
 	stormBlocks := gl.findVerticalElectricalStorms()
-	
+
 	if len(stormBlocks) == 0 {
 		return 0
 	}
-	
+
 	// Start electrical storm on these blocks (visual effect only)
 	gl.StartElectricalStorm(stormBlocks)
-	
+
 	// Update active storms map to manage timers
 	gl.UpdateActiveStorms()
-	
+
 	// No score for electrical storms since they don't destroy blocks
 	return 0
 }
@@ -776,31 +776,31 @@ func (gl *GameLogic) generateStormTimer() float64 {
 // UpdateStormTimers updates all active storm timers and handles neutral block generation
 func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 	var newNeutralBlocks []Block
-	
+
 	for _, storm := range gl.activeStorms {
 		if storm.IsActive {
 			storm.Timer += deltaTime
-			
+
 			// Check if it's time to drop a neutral block
 			if storm.Timer >= storm.NextDrop {
 				// Calculate grid dimensions
 				blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 				gameboardWidthInBlocks := int(float64(gl.gameboard.Width) / blockSize)
-				
+
 				// Choose a random column instead of just the storm column
 				randomColumn := rand.Intn(gameboardWidthInBlocks)
-				
+
 				// Create neutral block at top of random column with falling animation
 				neutralBlock := Block{
-					X:           randomColumn,
-					Y:           0, // Top of gameboard
-					BlockType:   NeutralBlock,
-					IsFalling:   false, // Let processBlockFalling handle the falling setup
-					FallStartY:  0,
-					FallTargetY: 0,
+					X:            randomColumn,
+					Y:            0, // Top of gameboard
+					BlockType:    NeutralBlock,
+					IsFalling:    false, // Let processBlockFalling handle the falling setup
+					FallStartY:   0,
+					FallTargetY:  0,
 					FallProgress: 0,
 				}
-				
+
 				// Check if the top position is free
 				positionFree := true
 				for _, placedBlock := range gl.placedBlocks {
@@ -809,18 +809,18 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 						break
 					}
 				}
-				
+
 				if positionFree {
 					newNeutralBlocks = append(newNeutralBlocks, neutralBlock)
 				}
-				
+
 				// Reset timer for next drop
 				storm.Timer = 0
 				storm.NextDrop = gl.generateStormTimer()
 			}
 		}
 	}
-	
+
 	return newNeutralBlocks
 }
 
@@ -835,14 +835,14 @@ func (gl *GameLogic) AddNeutralBlock(block Block) *Block {
 func (gl *GameLogic) UpdateActiveStorms() {
 	// Find which columns currently have active storms
 	stormColumns := make(map[int]bool)
-	
+
 	// Check each column for storm blocks
 	for _, block := range gl.placedBlocks {
 		if block.IsInStorm {
 			stormColumns[block.X] = true
 		}
 	}
-	
+
 	// Update storm map - start new storms and stop broken ones
 	for column := range stormColumns {
 		if _, exists := gl.activeStorms[column]; !exists {
@@ -855,7 +855,7 @@ func (gl *GameLogic) UpdateActiveStorms() {
 			}
 		}
 	}
-	
+
 	// Remove storms that are no longer active
 	for column, storm := range gl.activeStorms {
 		if !stormColumns[column] {
@@ -870,7 +870,7 @@ func (gl *GameLogic) StartBlockFall(block *Block) {
 	// Calculate how far this block should fall
 	blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 	gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
-	
+
 	// Find the lowest valid Y position
 	targetY := block.Y
 	for newY := block.Y + 1; newY < gameboardHeightInBlocks; newY++ {
@@ -881,27 +881,27 @@ func (gl *GameLogic) StartBlockFall(block *Block) {
 			if &placedBlock == block {
 				continue
 			}
-			
+
 			// Check against logical position for non-falling blocks
 			// or target position for falling blocks
 			checkY := placedBlock.Y
 			if placedBlock.IsFalling {
 				checkY = int(placedBlock.FallTargetY)
 			}
-			
+
 			if placedBlock.X == block.X && checkY == newY {
 				occupied = true
 				break
 			}
 		}
-		
+
 		if occupied {
 			break
 		}
-		
+
 		targetY = newY
 	}
-	
+
 	// Set up falling animation
 	block.IsFalling = true
 	block.FallStartY = float64(block.Y)
@@ -912,7 +912,7 @@ func (gl *GameLogic) StartBlockFall(block *Block) {
 // UpdateFallingBlocks updates the falling animation for all falling blocks
 func (gl *GameLogic) UpdateFallingBlocks(deltaTime float64) bool {
 	anyBlocksLanded := false
-	
+
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
 		if block.IsFalling {
@@ -920,7 +920,7 @@ func (gl *GameLogic) UpdateFallingBlocks(deltaTime float64) bool {
 			fallDistance := block.FallTargetY - block.FallStartY
 			if fallDistance > 0 {
 				block.FallProgress += deltaTime * FallSpeed / fallDistance
-				
+
 				// Check if fall is complete
 				if block.FallProgress >= 1.0 {
 					block.FallProgress = 1.0
@@ -935,7 +935,7 @@ func (gl *GameLogic) UpdateFallingBlocks(deltaTime float64) bool {
 			}
 		}
 	}
-	
+
 	return anyBlocksLanded
 }
 
@@ -948,4 +948,3 @@ func (gl *GameLogic) GetBlockRenderPosition(block *Block) (float64, float64) {
 	}
 	return float64(block.X), float64(block.Y)
 }
-

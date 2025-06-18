@@ -27,7 +27,7 @@ func NewPauseController(gameState *GameState, audioManager *AudioManager) *Pause
 func (pc *PauseController) Update() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
 		pc.gameState.TogglePause()
-		
+
 		if pc.gameState.IsPaused {
 			pc.audioManager.PauseBackgroundMusic()
 		} else {

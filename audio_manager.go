@@ -12,16 +12,16 @@ import (
 
 // Audio constants
 const (
-	SampleRate             = 44100 // 44.1kHz sample rate
-	BackgroundMusicVolume  = 0.1   // 10% volume
-	SoundEffectVolume      = 1.0   // 100% volume
+	SampleRate            = 44100 // 44.1kHz sample rate
+	BackgroundMusicVolume = 0.1   // 10% volume
+	SoundEffectVolume     = 1.0   // 100% volume
 )
 
 // AudioManager handles all audio playback
 type AudioManager struct {
-	audioContext         *audio.Context
-	blockBreakPlayer     *audio.Player
-	swooshPlayer         *audio.Player
+	audioContext          *audio.Context
+	blockBreakPlayer      *audio.Player
+	swooshPlayer          *audio.Player
 	backgroundMusicPlayer *audio.Player
 }
 

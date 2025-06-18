@@ -17,7 +17,7 @@ var (
 	NeutralChargeSprite  = loadImage("images/NeutralCharge.png")
 
 	BlockBreakSound = loadAudio("audio/coin.ogg")
-	SwooshSound = loadAudio("audio/swoosh.ogg")
+	SwooshSound     = loadAudio("audio/swoosh.ogg")
 	BackgroundMusic = loadAudio("audio/background_music.mp3")
 )
 

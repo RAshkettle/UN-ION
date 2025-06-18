@@ -85,14 +85,14 @@ func (gr *GameRenderer) RenderWithDropShadow(screen *ebiten.Image, placedBlocks 
 		for _, block := range shadowPiece.Blocks {
 			worldX := float64(shadowPiece.X+block.X) * blockSize
 			worldY := float64(shadowPiece.Y+block.Y) * blockSize
-			
+
 			// Create a shadow block with reduced opacity effect
 			shadowBlock := Block{
 				X:         block.X,
 				Y:         block.Y,
 				BlockType: block.BlockType,
 			}
-			
+
 			// Draw with special shadow rendering (we'll make it grayed out)
 			gr.blockManager.DrawBlock(blocksImage, shadowBlock, worldX, worldY, blockSize)
 		}

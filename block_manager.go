@@ -11,17 +11,17 @@ import (
 
 // Wobble effect constants
 const (
-	WobbleDuration   = 0.8  // Duration in seconds before block is destroyed
-	WobbleIntensity  = 2.0  // Maximum wobble offset in pixels
-	WobbleFrequency  = 8.0  // Wobbles per second
+	WobbleDuration  = 0.8 // Duration in seconds before block is destroyed
+	WobbleIntensity = 2.0 // Maximum wobble offset in pixels
+	WobbleFrequency = 8.0 // Wobbles per second
 )
 
 // Electrical storm constants
 const (
-	StormDuration    = 1.2  // Duration in seconds before storm blocks are destroyed
-	StormIntensity   = 3.0  // Maximum storm wobble offset in pixels
-	StormFrequency   = 12.0 // Storm wobbles per second (faster than normal wobble)
-	SparkFrequency   = 15.0 // Sparks per second
+	StormDuration  = 1.2  // Duration in seconds before storm blocks are destroyed
+	StormIntensity = 3.0  // Maximum storm wobble offset in pixels
+	StormFrequency = 12.0 // Storm wobbles per second (faster than normal wobble)
+	SparkFrequency = 15.0 // Sparks per second
 )
 
 // Fall animation constants
@@ -40,19 +40,19 @@ const (
 
 // Block represents a single block in a Tetris piece
 type Block struct {
-	X, Y            int
-	BlockType       BlockType
-	IsWobbling      bool    // Whether this block is wobbling (about to be destroyed)
-	WobbleTime      float64 // Time this block has been wobbling
-	WobblePhase     float64 // Current wobble animation phase
-	IsInStorm       bool    // Whether this block is part of an electrical storm
-	StormTime       float64 // Time this block has been in the storm
-	StormPhase      float64 // Current storm animation phase
-	SparkPhase      float64 // Current spark effect phase
-	IsFalling       bool    // Whether this block is currently falling smoothly
-	FallStartY      float64 // Starting Y position for fall animation
-	FallTargetY     float64 // Target Y position for fall animation
-	FallProgress    float64 // Fall animation progress (0.0 to 1.0)
+	X, Y         int
+	BlockType    BlockType
+	IsWobbling   bool    // Whether this block is wobbling (about to be destroyed)
+	WobbleTime   float64 // Time this block has been wobbling
+	WobblePhase  float64 // Current wobble animation phase
+	IsInStorm    bool    // Whether this block is part of an electrical storm
+	StormTime    float64 // Time this block has been in the storm
+	StormPhase   float64 // Current storm animation phase
+	SparkPhase   float64 // Current spark effect phase
+	IsFalling    bool    // Whether this block is currently falling smoothly
+	FallStartY   float64 // Starting Y position for fall animation
+	FallTargetY  float64 // Target Y position for fall animation
+	FallProgress float64 // Fall animation progress (0.0 to 1.0)
 }
 
 // TetrisPiece represents a complete Tetris piece with multiple blocks
@@ -527,37 +527,37 @@ func (bm *BlockManager) DrawBlock(screen *ebiten.Image, block Block, worldX, wor
 	if block.IsInStorm {
 		// More intense wobble for electrical storms
 		stormX := math.Sin(block.StormPhase) * StormIntensity
-		stormY := math.Cos(block.StormPhase * 1.7) * StormIntensity * 0.3 // Different frequency for Y
-		
+		stormY := math.Cos(block.StormPhase*1.7) * StormIntensity * 0.3 // Different frequency for Y
+
 		// Add random sparking motion
 		sparkOffset := math.Sin(block.SparkPhase) * 1.0
 		stormX += sparkOffset
-		stormY += math.Cos(block.SparkPhase * 2.3) * 0.5
-		
+		stormY += math.Cos(block.SparkPhase*2.3) * 0.5
+
 		// Position with storm offset
 		op.GeoM.Translate(worldX+stormX, worldY+stormY)
-		
+
 		// Add electrical storm visual effects (no transparency fade since blocks don't get destroyed)
 		// Flickering effect based on spark phase
 		flickerIntensity := 0.2 + 0.1*math.Sin(block.SparkPhase*2)
-		
+
 		// Color modulation for electrical effect
 		if block.BlockType == PositiveBlock {
 			// Positive blocks get more red/yellow during storms
 			op.ColorM.Scale(1.0+flickerIntensity, 1.0+flickerIntensity*0.5, 1.0-flickerIntensity*0.3, 1.0)
 		} else if block.BlockType == NegativeBlock {
-			// Negative blocks get more blue/cyan during storms  
+			// Negative blocks get more blue/cyan during storms
 			op.ColorM.Scale(1.0-flickerIntensity*0.3, 1.0+flickerIntensity*0.5, 1.0+flickerIntensity, 1.0)
 		}
-		
+
 	} else if block.IsWobbling {
 		// Normal wobble effect
 		wobbleX := math.Sin(block.WobblePhase) * WobbleIntensity
-		wobbleY := math.Cos(block.WobblePhase * 1.3) * WobbleIntensity * 0.5
-		
+		wobbleY := math.Cos(block.WobblePhase*1.3) * WobbleIntensity * 0.5
+
 		// Position with wobble offset
 		op.GeoM.Translate(worldX+wobbleX, worldY+wobbleY)
-		
+
 		// Add slight transparency to indicate impending destruction
 		wobbleProgress := block.WobbleTime / WobbleDuration
 		alpha := 1.0 - wobbleProgress*0.3 // Fade to 70% opacity
@@ -597,7 +597,7 @@ func (bm *BlockManager) DrawShadowBlock(screen *ebiten.Image, block Block, world
 		op.GeoM.Translate(worldX, worldY)
 
 		// Make it translucent and darker for shadow effect
-		op.ColorScale.ScaleAlpha(0.4)        // 40% opacity
+		op.ColorScale.ScaleAlpha(0.4)           // 40% opacity
 		op.ColorScale.Scale(0.5, 0.5, 0.5, 1.0) // Darker
 
 		screen.DrawImage(sprite, op)

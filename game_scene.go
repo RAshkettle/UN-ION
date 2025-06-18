@@ -20,30 +20,30 @@ const (
 )
 
 type GameScene struct {
-	sceneManager    *SceneManager
-	gameboard       *Gameboard
-	blockManager    *BlockManager
-	gameLogic       *GameLogic
-	inputHandler    *InputHandler
-	renderer        *GameRenderer
-	particleSystem  *ParticleSystem
-	audioManager    *AudioManager
-	screenShake     *ScreenShake
-	scorePopups     *ScorePopupSystem
-	currentPiece    *TetrisPiece
-	currentType     PieceType
-	nextPiece       *TetrisPiece
-	nextType        PieceType
-	fallTimer       *stopwatch.Stopwatch
-	CurrentScore    int
-	lastUpdateTime  time.Time
-	isPaused        bool
+	sceneManager   *SceneManager
+	gameboard      *Gameboard
+	blockManager   *BlockManager
+	gameLogic      *GameLogic
+	inputHandler   *InputHandler
+	renderer       *GameRenderer
+	particleSystem *ParticleSystem
+	audioManager   *AudioManager
+	screenShake    *ScreenShake
+	scorePopups    *ScorePopupSystem
+	currentPiece   *TetrisPiece
+	currentType    PieceType
+	nextPiece      *TetrisPiece
+	nextType       PieceType
+	fallTimer      *stopwatch.Stopwatch
+	CurrentScore   int
+	lastUpdateTime time.Time
+	isPaused       bool
 }
 
 func (g *GameScene) Update() error {
 	// Handle pause input (always check, even when paused)
 	g.handlePauseInput()
-	
+
 	// Calculate delta time
 	now := time.Now()
 	if g.lastUpdateTime.IsZero() {
@@ -51,10 +51,10 @@ func (g *GameScene) Update() error {
 	}
 	dt := now.Sub(g.lastUpdateTime).Seconds()
 	g.lastUpdateTime = now
-	
+
 	// Update visual effects even when paused
 	g.updateVisualEffects(dt)
-	
+
 	// Skip game logic if paused
 	if g.isPaused {
 		return nil
@@ -68,7 +68,7 @@ func (g *GameScene) Update() error {
 
 	// Handle input
 	shouldPlacePiece := g.inputHandler.HandleInput(g.currentPiece, g.currentType)
-	
+
 	// If input handler detected piece should be placed immediately
 	if shouldPlacePiece && g.currentPiece != nil {
 		g.placePieceAndCheckReactions()
@@ -96,42 +96,42 @@ func (g *GameScene) Update() error {
 func (g *GameScene) Draw(screen *ebiten.Image) {
 	// Get screen shake offset
 	shakeX, shakeY := g.screenShake.GetOffset()
-	
+
 	// Create a temporary image for shaken content
 	tempImage := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
-	
+
 	// Calculate drop shadow for current piece
 	var shadowPiece *TetrisPiece
 	if g.currentPiece != nil {
 		shadowPiece = g.gameLogic.CalculateDropPosition(g.currentPiece)
 	}
-	
+
 	// Render game with drop shadow
 	g.renderGameWithShadow(tempImage, shadowPiece)
 	g.renderer.RenderScore(tempImage, g.CurrentScore)
 	g.renderNextPiecePreview(tempImage)
-	
+
 	// Render score popups first
 	if g.scorePopups != nil {
 		g.scorePopups.Draw(tempImage)
 	}
-	
+
 	// Apply shake offset when drawing to screen
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(shakeX, shakeY)
 	screen.DrawImage(tempImage, op)
-	
+
 	// Render particles ABSOLUTELY LAST, directly to screen with shake offset
 	if g.particleSystem != nil {
 		particleOp := &ebiten.DrawImageOptions{}
 		particleOp.GeoM.Translate(shakeX, shakeY)
-		
+
 		// Create a temporary image just for particles
 		particleImage := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
 		g.particleSystem.Draw(particleImage)
 		screen.DrawImage(particleImage, particleOp)
 	}
-	
+
 	// Draw pause overlay if paused
 	g.drawPauseOverlay(screen)
 }
@@ -264,7 +264,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	particleSystem := NewParticleSystem()
 	screenShake := NewScreenShake()
 	scorePopups := NewScorePopupSystem()
-	
+
 	// Initialize audio
 	err := audioManager.Initialize()
 	if err != nil {
@@ -296,9 +296,9 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	// Set up the audio callback for block breaking sounds
 	gameLogic.SetAudioCallback(func(blocksRemoved int) {
 		audioManager.PlayBlockBreakMultiple(blocksRemoved)
-		
+
 		// Trigger screen shake based on number of blocks removed
-		intensity := float64(blocksRemoved) * 2.0 // 2 pixels per block
+		intensity := float64(blocksRemoved) * 2.0     // 2 pixels per block
 		duration := 0.2 + float64(blocksRemoved)*0.05 // Longer shake for more blocks
 		screenShake.StartShake(intensity, duration)
 	})
@@ -312,7 +312,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	gameLogic.SetHardDropCallback(func(dropHeight int) {
 		// Subtle screen shake for hard drops (much less intense than block explosions)
 		intensity := 1.0 + float64(dropHeight)*0.5 // Subtle intensity
-		duration := 0.1 // Short duration
+		duration := 0.1                            // Short duration
 		screenShake.StartShake(intensity, duration)
 	})
 
@@ -368,11 +368,11 @@ func (g *GameScene) updateVisualEffects(dt float64) {
 	if g.particleSystem != nil {
 		g.particleSystem.Update(dt)
 	}
-	
+
 	if g.screenShake != nil {
 		g.screenShake.Update(dt)
 	}
-	
+
 	if g.scorePopups != nil {
 		g.scorePopups.Update(dt)
 	}
@@ -415,56 +415,56 @@ func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
 func (g *GameScene) updateWobblingBlocks(dt float64) {
 	// Update falling block animations
 	anyBlocksLanded := g.gameLogic.UpdateFallingBlocks(dt)
-	
+
 	// Update wobbling animation
 	anyBlocksFinished := g.gameLogic.UpdateWobblingBlocks(dt)
-	
+
 	// Update electrical storm animation (visual effects only, no removal)
 	g.gameLogic.UpdateElectricalStorms(dt)
-	
+
 	// Update storm timers and generate neutral blocks
 	newNeutralBlocks := g.gameLogic.UpdateStormTimers(dt)
 	for _, neutralBlock := range newNeutralBlocks {
 		// Simply add the neutral block - it will fall with the normal falling process
 		g.gameLogic.AddNeutralBlock(neutralBlock)
-		
+
 		// Trigger dust effect for neutral block appearance
 		blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
 		worldX := float64(g.gameboard.X) + float64(neutralBlock.X)*blockSize + blockSize/2
 		worldY := float64(g.gameboard.Y) + float64(neutralBlock.Y)*blockSize + blockSize/2
 		g.particleSystem.AddDustCloud(worldX, worldY)
 	}
-	
+
 	// Process block falling for all blocks that need to fall
 	if len(newNeutralBlocks) > 0 {
 		g.gameLogic.processBlockFalling()
 	}
-	
+
 	// Check for new reactions when blocks finish landing
 	if anyBlocksLanded {
 		reactionScore := g.gameLogic.CheckForNewReactions()
 		g.gameLogic.CheckForElectricalStorms() // Check for new storms (visual only)
-		
+
 		if reactionScore > 0 {
 			g.CurrentScore += reactionScore
 		}
 	}
-	
+
 	// Handle finished wobbling blocks
 	if anyBlocksFinished {
 		removedCount := g.gameLogic.RemoveFinishedWobblingBlocks()
-		
+
 		if removedCount > 0 {
 			// Make remaining blocks fall with smooth animation
 			g.gameLogic.processBlockFalling()
-			
+
 			// Check for new chain reactions
 			reactionScore := g.gameLogic.CheckForNewReactions()
 			g.gameLogic.CheckForElectricalStorms() // Check for new storms (visual only)
-			
+
 			if reactionScore > 0 {
 				g.CurrentScore += reactionScore
-				
+
 				// Add score popup for chain reaction
 				popupX := float64(g.gameboard.X + g.gameboard.Width/2)
 				popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
@@ -485,13 +485,13 @@ func (g *GameScene) placePieceAndCheckReactions() {
 
 	// Check for new horizontal reactions and start wobbling on blocks
 	reactionScore := g.gameLogic.CheckForNewReactions()
-	
+
 	// Check for electrical storms (vertical sequences of 4+ same type) - visual effect only
 	g.gameLogic.CheckForElectricalStorms()
-	
+
 	if reactionScore > 0 {
 		g.CurrentScore += reactionScore
-		
+
 		// Add score popup at center of gameboard
 		popupX := float64(g.gameboard.X + g.gameboard.Width/2)
 		popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
