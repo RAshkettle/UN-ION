@@ -472,6 +472,8 @@ func (gl *GameLogic) UpdateWobblingBlocks(deltaTime float64) bool {
 
 			// Check if wobble duration is finished
 			if block.WobbleTime >= WobbleDuration {
+				// Hide POW sprite right when wobble duration finishes (before destruction)
+				block.ShowPowSprite = false
 				anyBlocksFinished = true
 			}
 		}
@@ -488,6 +490,8 @@ func (gl *GameLogic) RemoveFinishedWobblingBlocks() int {
 	// Separate blocks that finished wobbling from remaining blocks
 	for _, block := range gl.placedBlocks {
 		if block.IsWobbling && block.WobbleTime >= WobbleDuration {
+			// Hide POW sprite right before destruction for clean particle effect
+			block.ShowPowSprite = false
 			blocksToRemove = append(blocksToRemove, block)
 		} else {
 			remainingBlocks = append(remainingBlocks, block)
@@ -546,6 +550,7 @@ func (gl *GameLogic) StartBlockWobbling(blocksToWobble []Block) {
 			block.IsWobbling = true
 			block.WobbleTime = 0
 			block.WobblePhase = 0
+			block.ShowPowSprite = true // Show POW sprite when wobbling starts
 		}
 	}
 }

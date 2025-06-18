@@ -60,6 +60,7 @@ type Block struct {
 	IsWobbling   bool    // Whether this block is wobbling (about to be destroyed)
 	WobbleTime   float64 // Time this block has been wobbling
 	WobblePhase  float64 // Current wobble animation phase
+	ShowPowSprite bool   // Whether to show POW sprite on this wobbling block
 	IsInStorm    bool    // Whether this block is part of an electrical storm
 	StormTime    float64 // Time this block has been in the storm
 	StormPhase   float64 // Current storm animation phase
@@ -592,6 +593,11 @@ func (bm *BlockManager) DrawBlock(screen *ebiten.Image, block Block, worldX, wor
 	}
 
 	screen.DrawImage(sprite, op)
+	
+	// Draw POW sprite on top of wobbling blocks (but only when ShowPowSprite is true)
+	if block.IsWobbling && block.ShowPowSprite {
+		bm.DrawPowSprite(screen, worldX, worldY, block.WobblePhase, blockSize)
+	}
 }
 
 // DrawShadowBlock renders a translucent shadow block at the specified world coordinates
@@ -767,6 +773,12 @@ func (bm *BlockManager) DrawBlockTransformed(screen *ebiten.Image, block Block, 
 	}
 
 	screen.DrawImage(sprite, op)
+	
+	// Draw POW sprite on top of wobbling blocks (but only when ShowPowSprite is true)
+	// Note: For transformed blocks, we draw the POW sprite at the original block position without transformation
+	if block.IsWobbling && block.ShowPowSprite {
+		bm.DrawPowSprite(screen, worldX, worldY, block.WobblePhase, blockSize*scale)
+	}
 }
 
 // DrawWarningSprite renders a shaking ZAP sprite at the specified position
@@ -812,6 +824,39 @@ func (bm *BlockManager) DrawWarningSprite(screen *ebiten.Image, worldX, worldY, 
 
 	// Add slight color enhancement to make it more visible (no pulsing)
 	op.ColorM.Scale(1.2, 1.1, 0.9, 1.0) // Slightly yellow/orange tint with full opacity
+
+	screen.DrawImage(sprite, op)
+}
+
+// DrawPowSprite renders a wobbling POW sprite at the specified position
+func (bm *BlockManager) DrawPowSprite(screen *ebiten.Image, worldX, worldY, wobblePhase, blockSize float64) {
+	sprite := assets.PowSprite
+	if sprite == nil {
+		return
+	}
+
+	op := &ebiten.DrawImageOptions{}
+
+	// Scale the sprite to match the block size
+	scaleX := blockSize / float64(sprite.Bounds().Dx())
+	scaleY := blockSize / float64(sprite.Bounds().Dy())
+	
+	// Add wobble effect matching the block's wobble
+	wobbleX := math.Sin(wobblePhase) * WobbleIntensity
+	wobbleY := math.Cos(wobblePhase*1.3) * WobbleIntensity * 0.5
+
+	// Center the sprite on the block by offsetting by half the scaled size
+	spriteWidth := float64(sprite.Bounds().Dx()) * scaleX
+	spriteHeight := float64(sprite.Bounds().Dy()) * scaleY
+	centerOffsetX := (blockSize - spriteWidth) / 2
+	centerOffsetY := (blockSize - spriteHeight) / 2
+
+	// Apply scale and position with wobble offset and center alignment
+	op.GeoM.Scale(scaleX, scaleY)
+	op.GeoM.Translate(worldX+centerOffsetX+wobbleX, worldY+centerOffsetY+wobbleY)
+
+	// Add slight transparency and color enhancement for visibility
+	op.ColorM.Scale(1.0, 1.0, 1.0, 0.9) // Slight transparency so block is still visible underneath
 
 	screen.DrawImage(sprite, op)
 }
