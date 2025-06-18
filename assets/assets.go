@@ -15,8 +15,8 @@ var (
 	PositiveChargeSprite = loadImage("images/PositiveCharge.png")
 	NegativeChargeSprite = loadImage("images/NegativeCharge.png")
 	NeutralChargeSprite  = loadImage("images/NeutralCharge.png")
-	ZapSprite = loadImage("images/zap.png")
-	PowSprite = loadImage("images/pow.png")
+	ZapSprite            = loadImage("images/zap.png")
+	PowSprite            = loadImage("images/pow.png")
 
 	BlockBreakSound = loadAudio("audio/coin.ogg")
 	SwooshSound     = loadAudio("audio/swoosh.ogg")

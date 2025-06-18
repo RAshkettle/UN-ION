@@ -823,11 +823,11 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 
 				// Create neutral block with arc animation starting from highest storm block
 				neutralBlock := Block{
-					X:         targetColumn,  // Final destination
+					X:         targetColumn, // Final destination
 					Y:         0,            // Final Y position (top of board)
 					BlockType: NeutralBlock,
-					IsArcing:  true,        // Start with arc animation
-					IsFalling: false,       // Will fall after arc completes
+					IsArcing:  true,  // Start with arc animation
+					IsFalling: false, // Will fall after arc completes
 				}
 
 				// Initialize arc animation from storm block to target position

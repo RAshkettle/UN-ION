@@ -31,17 +31,17 @@ const (
 
 // Arc animation constants
 const (
-	ArcSpeed       = 4.0  // Arc animation speed (progress per second)
-	ArcHeight      = 3.0  // Maximum arc height in blocks above start position
-	MinArcScale    = 0.1  // Starting scale for arcing blocks
-	MaxRotation    = 360.0 // Maximum rotation in degrees during arc
+	ArcSpeed    = 4.0   // Arc animation speed (progress per second)
+	ArcHeight   = 3.0   // Maximum arc height in blocks above start position
+	MinArcScale = 0.1   // Starting scale for arcing blocks
+	MaxRotation = 360.0 // Maximum rotation in degrees during arc
 )
 
 // Warning animation constants
 const (
-	WarningDuration   = 1.0  // Duration in seconds before spawn
-	WarningIntensity  = 3.0  // Maximum shake offset in pixels
-	WarningFrequency  = 20.0 // Shakes per second
+	WarningDuration  = 1.0  // Duration in seconds before spawn
+	WarningIntensity = 3.0  // Maximum shake offset in pixels
+	WarningFrequency = 20.0 // Shakes per second
 )
 
 // BlockType represents the three different charge types
@@ -55,29 +55,29 @@ const (
 
 // Block represents a single block in a Tetris piece
 type Block struct {
-	X, Y         int
-	BlockType    BlockType
-	IsWobbling   bool    // Whether this block is wobbling (about to be destroyed)
-	WobbleTime   float64 // Time this block has been wobbling
-	WobblePhase  float64 // Current wobble animation phase
-	ShowPowSprite bool   // Whether to show POW sprite on this wobbling block
-	IsInStorm    bool    // Whether this block is part of an electrical storm
-	StormTime    float64 // Time this block has been in the storm
-	StormPhase   float64 // Current storm animation phase
-	SparkPhase   float64 // Current spark effect phase
-	IsFalling       bool    // Whether this block is currently falling smoothly
-	FallStartY      float64 // Starting Y position for fall animation
-	FallTargetY     float64 // Target Y position for fall animation
-	FallProgress    float64 // Fall animation progress (0.0 to 1.0)
+	X, Y          int
+	BlockType     BlockType
+	IsWobbling    bool    // Whether this block is wobbling (about to be destroyed)
+	WobbleTime    float64 // Time this block has been wobbling
+	WobblePhase   float64 // Current wobble animation phase
+	ShowPowSprite bool    // Whether to show POW sprite on this wobbling block
+	IsInStorm     bool    // Whether this block is part of an electrical storm
+	StormTime     float64 // Time this block has been in the storm
+	StormPhase    float64 // Current storm animation phase
+	SparkPhase    float64 // Current spark effect phase
+	IsFalling     bool    // Whether this block is currently falling smoothly
+	FallStartY    float64 // Starting Y position for fall animation
+	FallTargetY   float64 // Target Y position for fall animation
+	FallProgress  float64 // Fall animation progress (0.0 to 1.0)
 	// Arc animation fields for neutral block spawning
-	IsArcing        bool    // Whether this block is currently arcing from storm to top
-	ArcStartX       float64 // Starting X position for arc animation
-	ArcStartY       float64 // Starting Y position for arc animation
-	ArcTargetX      float64 // Target X position for arc animation
-	ArcTargetY      float64 // Target Y position for arc animation (usually 0)
-	ArcProgress     float64 // Arc animation progress (0.0 to 1.0)
-	ArcRotation     float64 // Current rotation angle for arc animation
-	ArcScale        float64 // Current scale for arc animation (0.1 to 1.0)
+	IsArcing    bool    // Whether this block is currently arcing from storm to top
+	ArcStartX   float64 // Starting X position for arc animation
+	ArcStartY   float64 // Starting Y position for arc animation
+	ArcTargetX  float64 // Target X position for arc animation
+	ArcTargetY  float64 // Target Y position for arc animation (usually 0)
+	ArcProgress float64 // Arc animation progress (0.0 to 1.0)
+	ArcRotation float64 // Current rotation angle for arc animation
+	ArcScale    float64 // Current scale for arc animation (0.1 to 1.0)
 }
 
 // TetrisPiece represents a complete Tetris piece with multiple blocks
@@ -593,7 +593,7 @@ func (bm *BlockManager) DrawBlock(screen *ebiten.Image, block Block, worldX, wor
 	}
 
 	screen.DrawImage(sprite, op)
-	
+
 	// Draw POW sprite on top of wobbling blocks (but only when ShowPowSprite is true)
 	if block.IsWobbling && block.ShowPowSprite {
 		bm.DrawPowSprite(screen, worldX, worldY, block.WobblePhase, blockSize)
@@ -773,7 +773,7 @@ func (bm *BlockManager) DrawBlockTransformed(screen *ebiten.Image, block Block, 
 	}
 
 	screen.DrawImage(sprite, op)
-	
+
 	// Draw POW sprite on top of wobbling blocks (but only when ShowPowSprite is true)
 	// Note: For transformed blocks, we draw the POW sprite at the original block position without transformation
 	if block.IsWobbling && block.ShowPowSprite {
@@ -798,12 +798,12 @@ func (bm *BlockManager) DrawWarningSprite(screen *ebiten.Image, worldX, worldY, 
 	// Add shake/wobble effect
 	shakePhase := warningTime * WarningFrequency * 2 * math.Pi
 	shakeX := math.Sin(shakePhase) * WarningIntensity
-	shakeY := math.Cos(shakePhase * 1.3) * WarningIntensity * 0.7
+	shakeY := math.Cos(shakePhase*1.3) * WarningIntensity * 0.7
 
 	// Add secondary wobble for more dynamic movement
 	wobblePhase := warningTime * WarningFrequency * 1.5 * math.Pi
 	wobbleX := math.Sin(wobblePhase) * WarningIntensity * 0.5
-	wobbleY := math.Cos(wobblePhase * 0.8) * WarningIntensity * 0.3
+	wobbleY := math.Cos(wobblePhase*0.8) * WarningIntensity * 0.3
 
 	// Calculate grid dimensions to determine board center
 	gameboardWidthInBlocks := int(float64(gameboardWidth) / blockSize)
@@ -819,7 +819,7 @@ func (bm *BlockManager) DrawWarningSprite(screen *ebiten.Image, worldX, worldY, 
 		offsetX = blockSize * 0.7 // Position towards top-right
 	}
 	offsetY := blockSize * 0.1
-	
+
 	op.GeoM.Translate(worldX+offsetX+shakeX+wobbleX, worldY+offsetY+shakeY+wobbleY)
 
 	// Add slight color enhancement to make it more visible (no pulsing)
@@ -840,7 +840,7 @@ func (bm *BlockManager) DrawPowSprite(screen *ebiten.Image, worldX, worldY, wobb
 	// Scale the sprite to match the block size
 	scaleX := blockSize / float64(sprite.Bounds().Dx())
 	scaleY := blockSize / float64(sprite.Bounds().Dy())
-	
+
 	// Add wobble effect matching the block's wobble
 	wobbleX := math.Sin(wobblePhase) * WobbleIntensity
 	wobbleY := math.Cos(wobblePhase*1.3) * WobbleIntensity * 0.5

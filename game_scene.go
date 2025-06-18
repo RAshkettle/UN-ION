@@ -156,7 +156,7 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 		renderX, renderY, rotation, scale := g.gameLogic.GetBlockRenderTransform(&block)
 		worldX := renderX * blockSize
 		worldY := renderY * blockSize
-		
+
 		// Use transformed drawing for arcing blocks, normal drawing for others
 		if block.IsArcing || rotation != 0.0 || scale != 1.0 {
 			g.blockManager.DrawBlockTransformed(blocksImage, block, worldX, worldY, rotation, scale, blockSize)
@@ -429,7 +429,7 @@ func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
 func (g *GameScene) updateWobblingBlocks(dt float64) {
 	// Update arc animations for neutral blocks
 	anyBlocksFinishedArcing := g.gameLogic.UpdateArcingBlocks(dt)
-	
+
 	// Update falling block animations
 	anyBlocksLanded := g.gameLogic.UpdateFallingBlocks(dt)
 
