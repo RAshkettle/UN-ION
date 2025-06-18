@@ -2,23 +2,26 @@ package main
 
 import (
 	"bytes"
+	"time"
 	"union/assets"
 
 	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
 	"github.com/hajimehoshi/ebiten/v2/audio/vorbis"
 )
 
 // AudioManager handles all audio playback
 type AudioManager struct {
-	audioContext      *audio.Context
-	blockBreakPlayer  *audio.Player
-	swooshPlayer      *audio.Player
+	audioContext         *audio.Context
+	blockBreakPlayer     *audio.Player
+	swooshPlayer         *audio.Player
+	backgroundMusicPlayer *audio.Player
 }
 
 // NewAudioManager creates a new audio manager
 func NewAudioManager() *AudioManager {
 	audioContext := audio.NewContext(44100) // 44.1kHz sample rate
-	
+
 	return &AudioManager{
 		audioContext: audioContext,
 	}
@@ -31,23 +34,37 @@ func (am *AudioManager) Initialize() error {
 	if err != nil {
 		return err
 	}
-	
+
 	am.blockBreakPlayer, err = am.audioContext.NewPlayer(blockBreakStream)
 	if err != nil {
 		return err
 	}
-	
+
 	// Load swoosh sound
 	swooshStream, err := vorbis.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.SwooshSound))
 	if err != nil {
 		return err
 	}
-	
+
 	am.swooshPlayer, err = am.audioContext.NewPlayer(swooshStream)
 	if err != nil {
 		return err
 	}
-	
+
+	// Load background music
+	backgroundMusicStream, err := mp3.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.BackgroundMusic))
+	if err != nil {
+		return err
+	}
+
+	am.backgroundMusicPlayer, err = am.audioContext.NewPlayer(backgroundMusicStream)
+	if err != nil {
+		return err
+	}
+
+	// Set background music volume to 10% and loop infinitely
+	am.backgroundMusicPlayer.SetVolume(0.1)
+
 	// Set a specific playback rate for the OGG to prevent thin sound
 	// This helps maintain the richness of the audio
 	return nil
@@ -58,7 +75,7 @@ func (am *AudioManager) PlayBlockBreak() {
 	if am.blockBreakPlayer == nil {
 		return
 	}
-	
+
 	// Rewind to start and play
 	am.blockBreakPlayer.Rewind()
 	am.blockBreakPlayer.Play()
@@ -70,12 +87,12 @@ func (am *AudioManager) CreateBlockBreakPlayer() *audio.Player {
 	if err != nil {
 		return nil
 	}
-	
+
 	player, err := am.audioContext.NewPlayer(blockBreakStream)
 	if err != nil {
 		return nil
 	}
-	
+
 	return player
 }
 
@@ -99,8 +116,40 @@ func (am *AudioManager) PlaySwooshSound() {
 	if am.swooshPlayer == nil {
 		return
 	}
-	
+
 	// Rewind to start and play the dedicated swoosh sound
 	am.swooshPlayer.Rewind()
 	am.swooshPlayer.Play()
+}
+
+// StartBackgroundMusic starts playing the background music on loop
+func (am *AudioManager) StartBackgroundMusic() {
+	if am.backgroundMusicPlayer == nil {
+		return
+	}
+
+	// Start playing the background music
+	am.backgroundMusicPlayer.Play()
+
+	// Set up looping by monitoring the player in a goroutine
+	go func() {
+		for {
+			// Check if the music has finished playing
+			if !am.backgroundMusicPlayer.IsPlaying() {
+				// Rewind to start and play again
+				am.backgroundMusicPlayer.Rewind()
+				am.backgroundMusicPlayer.Play()
+			}
+
+			// Check every 100ms
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
+}
+
+// StopBackgroundMusic stops the background music
+func (am *AudioManager) StopBackgroundMusic() {
+	if am.backgroundMusicPlayer != nil {
+		am.backgroundMusicPlayer.Pause()
+	}
 }

@@ -18,6 +18,7 @@ var (
 
 	BlockBreakSound = loadAudio("audio/coin.ogg")
 	SwooshSound = loadAudio("audio/swoosh.ogg")
+	BackgroundMusic = loadAudio("audio/background_music.mp3")
 )
 
 func loadImage(filePath string) *ebiten.Image {

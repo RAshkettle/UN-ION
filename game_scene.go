@@ -346,6 +346,9 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	// Spawn initial current piece
 	g.spawnNewPiece()
 
+	// Start background music at 10% volume
+	audioManager.StartBackgroundMusic()
+
 	return g
 }
 
