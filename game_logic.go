@@ -786,36 +786,18 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 				// Calculate grid dimensions
 				blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
 				gameboardWidthInBlocks := int(float64(gl.gameboard.Width) / blockSize)
-				centerX := gameboardWidthInBlocks / 2
 				
-				// Choose a random column, but avoid the center spawn area (centerX-1 to centerX+2)
-				var randomColumn int
-				attempts := 0
-				for attempts < 10 { // Prevent infinite loop
-					randomColumn = rand.Intn(gameboardWidthInBlocks)
-					// Avoid the tetris piece spawn area
-					if randomColumn < centerX-1 || randomColumn > centerX+2 {
-						break
-					}
-					attempts++
-				}
-				
-				// If we couldn't find a safe column, skip this spawn
-				if attempts >= 10 {
-					// Reset timer for next attempt
-					storm.Timer = 0
-					storm.NextDrop = gl.generateStormTimer()
-					continue
-				}
+				// Choose a random column instead of just the storm column
+				randomColumn := rand.Intn(gameboardWidthInBlocks)
 				
 				// Create neutral block at top of random column with falling animation
 				neutralBlock := Block{
 					X:           randomColumn,
 					Y:           0, // Top of gameboard
 					BlockType:   NeutralBlock,
-					IsFalling:   true,
+					IsFalling:   false, // Let processBlockFalling handle the falling setup
 					FallStartY:  0,
-					FallTargetY: 0, // Will be calculated in StartBlockFall
+					FallTargetY: 0,
 					FallProgress: 0,
 				}
 				
@@ -842,9 +824,11 @@ func (gl *GameLogic) UpdateStormTimers(deltaTime float64) []Block {
 	return newNeutralBlocks
 }
 
-// AddNeutralBlock adds a neutral block to the placed blocks
-func (gl *GameLogic) AddNeutralBlock(block Block) {
+// AddNeutralBlock adds a neutral block to the placed blocks and returns a pointer to it
+func (gl *GameLogic) AddNeutralBlock(block Block) *Block {
 	gl.placedBlocks = append(gl.placedBlocks, block)
+	// Return pointer to the actual block in the slice
+	return &gl.placedBlocks[len(gl.placedBlocks)-1]
 }
 
 // UpdateActiveStorms updates the active storms map based on current storm blocks
