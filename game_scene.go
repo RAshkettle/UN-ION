@@ -57,7 +57,33 @@ func (g *GameScene) Update() error {
 	g.fallTimer.Update()
 
 	// Handle input
-	g.inputHandler.HandleInput(g.currentPiece, g.currentType)
+	shouldPlacePiece := g.inputHandler.HandleInput(g.currentPiece, g.currentType)
+	
+	// If input handler detected piece should be placed immediately
+	if shouldPlacePiece && g.currentPiece != nil {
+		// Place the piece
+		g.gameLogic.PlacePiece(g.currentPiece)
+
+		// Process any chain reactions from placed blocks and add score
+		reactionScore := g.gameLogic.CheckAndProcessReactions()
+		if reactionScore > 0 {
+			g.CurrentScore += reactionScore
+			
+			// Add score popup at center of gameboard
+			popupX := float64(g.gameboard.X + g.gameboard.Width/2)
+			popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
+			g.scorePopups.AddScorePopup(popupX, popupY, reactionScore)
+		}
+
+		// Check for game over condition
+		if g.gameLogic.IsGameOver() {
+			// Transition to end scene with current score
+			g.sceneManager.TransitionToEndScreen(g.CurrentScore)
+			return nil
+		}
+
+		g.spawnNewPiece()
+	}
 
 	// Handle automatic falling (every 1 second)
 	if g.fallTimer.IsDone() {

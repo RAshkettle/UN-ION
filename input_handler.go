@@ -29,12 +29,14 @@ func NewInputHandler(gameLogic *GameLogic) *InputHandler {
 }
 
 // HandleInput processes all input for the current frame
-func (ih *InputHandler) HandleInput(currentPiece *TetrisPiece, currentType PieceType) {
+// Returns true if the piece should be placed immediately due to manual drop
+func (ih *InputHandler) HandleInput(currentPiece *TetrisPiece, currentType PieceType) bool {
 	if currentPiece == nil {
-		return
+		return false
 	}
 
 	now := time.Now()
+	shouldPlace := false
 
 	// Handle piece rotation (only on key press, no repeat)
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
@@ -73,13 +75,19 @@ func (ih *InputHandler) HandleInput(currentPiece *TetrisPiece, currentType Piece
 	downPressed := ebiten.IsKeyPressed(ebiten.KeyS) || ebiten.IsKeyPressed(ebiten.KeyArrowDown)
 	if downPressed {
 		if inpututil.IsKeyJustPressed(ebiten.KeyS) || inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) {
-			// First press - move immediately
-			ih.gameLogic.TryMovePiece(currentPiece, 0, 1)
+			// First press - try to move down, place if can't
+			if !ih.gameLogic.TryMovePiece(currentPiece, 0, 1) {
+				shouldPlace = true
+			}
 			ih.downRepeatTimer = now.Add(50 * time.Millisecond) // Faster initial delay for down
 		} else if now.After(ih.downRepeatTimer) {
-			// Key held - repeat movement
-			ih.gameLogic.TryMovePiece(currentPiece, 0, 1)
+			// Key held - try to move down, place if can't
+			if !ih.gameLogic.TryMovePiece(currentPiece, 0, 1) {
+				shouldPlace = true
+			}
 			ih.downRepeatTimer = now.Add(50 * time.Millisecond) // Faster repeat for down
 		}
 	}
+
+	return shouldPlace
 }
