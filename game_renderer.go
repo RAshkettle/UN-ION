@@ -113,19 +113,19 @@ func (gr *GameRenderer) RenderWithDropShadow(screen *ebiten.Image, placedBlocks 
 	screen.DrawImage(blocksImage, op)
 }
 
-// RenderScore draws the current score on the left side of the gameboard
+// RenderScore draws the current score at the top right, above the On-Deck preview
 func (gr *GameRenderer) RenderScore(screen *ebiten.Image, currentScore int) {
-	// Position score relative to gameboard but ensure it's visible
+	// Position score above the next piece preview area (top right)
 	margin := 10
-	scoreX := max(margin, gr.gameboard.X-80)
-	scoreY := gr.gameboard.Y + 50
+	scoreX := gr.gameboard.X + gr.gameboard.Width + 20 // Same X as preview area
+	scoreY := max(margin, gr.gameboard.Y - 10) // Position above the gameboard, closer to top
 
 	// Draw "SCORE" label
 	text.Draw(screen, "SCORE", basicfont.Face7x13, scoreX, scoreY, color.RGBA{200, 200, 255, 255})
 
 	// Draw the actual score value with better formatting
 	scoreText := fmt.Sprintf("%d", currentScore)
-	text.Draw(screen, scoreText, basicfont.Face7x13, scoreX, scoreY+25, color.RGBA{255, 255, 255, 255})
+	text.Draw(screen, scoreText, basicfont.Face7x13, scoreX, scoreY+15, color.RGBA{255, 255, 255, 255})
 }
 
 // RenderDropShadow draws a translucent preview of where the piece will land
