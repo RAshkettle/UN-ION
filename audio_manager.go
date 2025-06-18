@@ -10,6 +10,13 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio/vorbis"
 )
 
+// Audio constants
+const (
+	SampleRate             = 44100 // 44.1kHz sample rate
+	BackgroundMusicVolume  = 0.1   // 10% volume
+	SoundEffectVolume      = 1.0   // 100% volume
+)
+
 // AudioManager handles all audio playback
 type AudioManager struct {
 	audioContext         *audio.Context
@@ -20,7 +27,7 @@ type AudioManager struct {
 
 // NewAudioManager creates a new audio manager
 func NewAudioManager() *AudioManager {
-	audioContext := audio.NewContext(44100) // 44.1kHz sample rate
+	audioContext := audio.NewContext(SampleRate)
 
 	return &AudioManager{
 		audioContext: audioContext,
@@ -63,7 +70,7 @@ func (am *AudioManager) Initialize() error {
 	}
 
 	// Set background music volume to 10% and loop infinitely
-	am.backgroundMusicPlayer.SetVolume(0.1)
+	am.backgroundMusicPlayer.SetVolume(BackgroundMusicVolume)
 
 	// Set a specific playback rate for the OGG to prevent thin sound
 	// This helps maintain the richness of the audio

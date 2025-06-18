@@ -12,6 +12,13 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
+// Game constants
+const (
+	GameboardWidth  = 192 // pixels
+	GameboardHeight = 320 // pixels
+	FallInterval    = 1   // seconds
+)
+
 type GameScene struct {
 	sceneManager    *SceneManager
 	gameboard       *Gameboard
@@ -35,20 +42,7 @@ type GameScene struct {
 
 func (g *GameScene) Update() error {
 	// Handle pause input (always check, even when paused)
-	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
-		g.isPaused = !g.isPaused
-		if g.isPaused {
-			// Pause background music
-			if g.audioManager != nil {
-				g.audioManager.PauseBackgroundMusic()
-			}
-		} else {
-			// Resume background music
-			if g.audioManager != nil {
-				g.audioManager.ResumeBackgroundMusic()
-			}
-		}
-	}
+	g.handlePauseInput()
 	
 	// Calculate delta time
 	now := time.Now()
@@ -59,20 +53,7 @@ func (g *GameScene) Update() error {
 	g.lastUpdateTime = now
 	
 	// Update visual effects even when paused
-	// Update particle system
-	if g.particleSystem != nil {
-		g.particleSystem.Update(dt)
-	}
-	
-	// Update screen shake
-	if g.screenShake != nil {
-		g.screenShake.Update(dt)
-	}
-	
-	// Update score popups
-	if g.scorePopups != nil {
-		g.scorePopups.Update(dt)
-	}
+	g.updateVisualEffects(dt)
 	
 	// Skip game logic if paused
 	if g.isPaused {
@@ -87,28 +68,8 @@ func (g *GameScene) Update() error {
 	
 	// If input handler detected piece should be placed immediately
 	if shouldPlacePiece && g.currentPiece != nil {
-		// Place the piece
-		g.gameLogic.PlacePiece(g.currentPiece)
-
-		// Process any chain reactions from placed blocks and add score
-		reactionScore := g.gameLogic.CheckAndProcessReactions()
-		if reactionScore > 0 {
-			g.CurrentScore += reactionScore
-			
-			// Add score popup at center of gameboard
-			popupX := float64(g.gameboard.X + g.gameboard.Width/2)
-			popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
-			g.scorePopups.AddScorePopup(popupX, popupY, reactionScore)
-		}
-
-		// Check for game over condition
-		if g.gameLogic.IsGameOver() {
-			// Transition to end scene with current score
-			g.sceneManager.TransitionToEndScreen(g.CurrentScore)
-			return nil
-		}
-
-		g.spawnNewPiece()
+		g.placePieceAndCheckReactions()
+		return nil
 	}
 
 	// Handle automatic falling (every 1 second)
@@ -118,27 +79,8 @@ func (g *GameScene) Update() error {
 				// Piece fell successfully
 			} else {
 				// Piece can't fall further, place it
-				g.gameLogic.PlacePiece(g.currentPiece)
-
-				// Process any chain reactions from placed blocks and add score
-				reactionScore := g.gameLogic.CheckAndProcessReactions()
-				if reactionScore > 0 {
-					g.CurrentScore += reactionScore
-					
-					// Add score popup at center of gameboard
-					popupX := float64(g.gameboard.X + g.gameboard.Width/2)
-					popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
-					g.scorePopups.AddScorePopup(popupX, popupY, reactionScore)
-				}
-
-				// Check for game over condition
-				if g.gameLogic.IsGameOver() {
-					// Transition to end scene with current score
-					g.sceneManager.TransitionToEndScreen(g.CurrentScore)
-					return nil
-				}
-
-				g.spawnNewPiece()
+				g.placePieceAndCheckReactions()
+				return nil
 			}
 		}
 		g.fallTimer.Reset()
@@ -188,33 +130,7 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	}
 	
 	// Draw pause overlay if paused
-	if g.isPaused {
-		// Draw semi-transparent overlay
-		overlay := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
-		overlay.Fill(color.RGBA{0, 0, 0, 128}) // 50% transparent black
-		screen.DrawImage(overlay, nil)
-		
-		// Draw "PAUSED" text in the center
-		centerX := screen.Bounds().Dx() / 2
-		centerY := screen.Bounds().Dy() / 2
-		
-		// Use basic font for text rendering
-		fontFace := basicfont.Face7x13
-		
-		// Draw "PAUSED" text
-		pausedText := "PAUSED"
-		pausedBounds := text.BoundString(fontFace, pausedText)
-		pausedX := centerX - pausedBounds.Dx()/2
-		pausedY := centerY - 10
-		text.Draw(screen, pausedText, fontFace, pausedX, pausedY, color.RGBA{255, 255, 255, 255})
-		
-		// Draw "Press P to Resume" below
-		resumeText := "Press P to Resume"
-		resumeBounds := text.BoundString(fontFace, resumeText)
-		resumeX := centerX - resumeBounds.Dx()/2
-		resumeY := centerY + 20
-		text.Draw(screen, resumeText, fontFace, resumeX, resumeY, color.RGBA{200, 200, 200, 255})
-	}
+	g.drawPauseOverlay(screen)
 }
 
 // renderGameWithShadow renders the game state including drop shadow
@@ -330,11 +246,11 @@ func (g *GameScene) Layout(outerWidth, outerHeight int) (int, int) {
 
 func NewGameScene(sm *SceneManager) *GameScene {
 	// Create fall timer (1 second intervals)
-	fallTimer := stopwatch.NewStopwatch(1 * time.Second)
+	fallTimer := stopwatch.NewStopwatch(FallInterval * time.Second)
 	fallTimer.Start()
 
 	// Create components
-	gameboard := NewGameboard(192, 320) // 192px wide, 320px tall
+	gameboard := NewGameboard(GameboardWidth, GameboardHeight)
 	blockManager := NewBlockManager()
 	gameLogic := NewGameLogic(gameboard, blockManager)
 	audioManager := NewAudioManager()
@@ -424,4 +340,98 @@ func (g *GameScene) copyPieceForGameplay(piece *TetrisPiece, pieceType PieceType
 		Y:        0,
 		Rotation: piece.Rotation,
 	}
+}
+
+// handlePauseInput processes pause key input and manages pause state
+func (g *GameScene) handlePauseInput() {
+	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		g.isPaused = !g.isPaused
+		if g.isPaused {
+			if g.audioManager != nil {
+				g.audioManager.PauseBackgroundMusic()
+			}
+		} else {
+			if g.audioManager != nil {
+				g.audioManager.ResumeBackgroundMusic()
+			}
+		}
+	}
+}
+
+// updateVisualEffects updates particles, screen shake, and score popups
+func (g *GameScene) updateVisualEffects(dt float64) {
+	if g.particleSystem != nil {
+		g.particleSystem.Update(dt)
+	}
+	
+	if g.screenShake != nil {
+		g.screenShake.Update(dt)
+	}
+	
+	if g.scorePopups != nil {
+		g.scorePopups.Update(dt)
+	}
+}
+
+// drawPauseOverlay renders the pause overlay with text
+func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
+	if !g.isPaused {
+		return
+	}
+
+	// Draw semi-transparent overlay
+	overlay := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
+	overlay.Fill(color.RGBA{0, 0, 0, 128}) // 50% transparent black
+	screen.DrawImage(overlay, nil)
+
+	// Draw "PAUSED" text in the center
+	centerX := screen.Bounds().Dx() / 2
+	centerY := screen.Bounds().Dy() / 2
+
+	// Use basic font for text rendering
+	fontFace := basicfont.Face7x13
+
+	// Draw "PAUSED" text
+	pausedText := "PAUSED"
+	pausedBounds := text.BoundString(fontFace, pausedText)
+	pausedX := centerX - pausedBounds.Dx()/2
+	pausedY := centerY - 10
+	text.Draw(screen, pausedText, fontFace, pausedX, pausedY, color.RGBA{255, 255, 255, 255})
+
+	// Draw "Press P to Resume" below
+	resumeText := "Press P to Resume"
+	resumeBounds := text.BoundString(fontFace, resumeText)
+	resumeX := centerX - resumeBounds.Dx()/2
+	resumeY := centerY + 20
+	text.Draw(screen, resumeText, fontFace, resumeX, resumeY, color.RGBA{200, 200, 200, 255})
+}
+
+// placePieceAndCheckReactions places a piece and handles reactions/scoring
+func (g *GameScene) placePieceAndCheckReactions() {
+	if g.currentPiece == nil {
+		return
+	}
+
+	// Place the piece
+	g.gameLogic.PlacePiece(g.currentPiece)
+
+	// Process any chain reactions from placed blocks and add score
+	reactionScore := g.gameLogic.CheckAndProcessReactions()
+	if reactionScore > 0 {
+		g.CurrentScore += reactionScore
+		
+		// Add score popup at center of gameboard
+		popupX := float64(g.gameboard.X + g.gameboard.Width/2)
+		popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
+		g.scorePopups.AddScorePopup(popupX, popupY, reactionScore)
+	}
+
+	// Check for game over condition
+	if g.gameLogic.IsGameOver() {
+		// Transition to end scene with current score
+		g.sceneManager.TransitionToEndScreen(g.CurrentScore)
+		return
+	}
+
+	g.spawnNewPiece()
 }

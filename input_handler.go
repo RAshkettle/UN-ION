@@ -128,6 +128,53 @@ func (ih *InputHandler) HandleInput(currentPiece *TetrisPiece, currentType Piece
 	return shouldPlace
 }
 
+// handleMovementWithRepeat handles movement input with key repeat
+func (ih *InputHandler) handleMovementWithRepeat(currentPiece *TetrisPiece, dx, dy int, keys []ebiten.Key, justPressedKeys []ebiten.Key, timer *time.Time, now time.Time) bool {
+	// Check if any of the movement keys are pressed
+	pressed := false
+	for _, key := range keys {
+		if ebiten.IsKeyPressed(key) {
+			pressed = true
+			break
+		}
+	}
+
+	if !pressed {
+		return false
+	}
+
+	// Check if any of the keys were just pressed
+	justPressed := false
+	for _, key := range justPressedKeys {
+		if inpututil.IsKeyJustPressed(key) {
+			justPressed = true
+			break
+		}
+	}
+
+	if justPressed {
+		// First press - move immediately
+		if ih.gameLogic.TryMovePiece(currentPiece, dx, dy) {
+			if ih.audioManager != nil {
+				ih.audioManager.PlaySwooshSound()
+			}
+		}
+		*timer = now.Add(ih.initialDelay)
+		return dx == 0 && dy == 1 // Return true only for down movement that should trigger placement
+	} else if now.After(*timer) {
+		// Key held - repeat movement
+		if ih.gameLogic.TryMovePiece(currentPiece, dx, dy) {
+			if ih.audioManager != nil {
+				ih.audioManager.PlaySwooshSound()
+			}
+		}
+		*timer = now.Add(ih.repeatDelay)
+		return dx == 0 && dy == 1 // Return true only for down movement that should trigger placement
+	}
+
+	return false
+}
+
 // triggerHardDropShake triggers screen shake for hard drops
 func (ih *InputHandler) triggerHardDropShake(dropHeight int) {
 	if ih.gameLogic.hardDropCallback != nil {
