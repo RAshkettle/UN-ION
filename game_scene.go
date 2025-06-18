@@ -17,6 +17,7 @@ type GameScene struct {
 	renderer        *GameRenderer
 	particleSystem  *ParticleSystem
 	audioManager    *AudioManager
+	screenShake     *ScreenShake
 	currentPiece    *TetrisPiece
 	currentType     PieceType
 	nextPiece       *TetrisPiece
@@ -38,6 +39,11 @@ func (g *GameScene) Update() error {
 	// Update particle system
 	if g.particleSystem != nil {
 		g.particleSystem.Update(dt)
+	}
+	
+	// Update screen shake
+	if g.screenShake != nil {
+		g.screenShake.Update(dt)
 	}
 
 	// Update the fall timer
@@ -77,14 +83,25 @@ func (g *GameScene) Update() error {
 }
 
 func (g *GameScene) Draw(screen *ebiten.Image) {
-	g.renderer.Render(screen, g.gameLogic.GetPlacedBlocks(), g.currentPiece)
-	g.renderer.RenderScore(screen, g.CurrentScore)
-	g.renderNextPiecePreview(screen)
+	// Get screen shake offset
+	shakeX, shakeY := g.screenShake.GetOffset()
+	
+	// Create a temporary image for shaken content
+	tempImage := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
+	
+	g.renderer.Render(tempImage, g.gameLogic.GetPlacedBlocks(), g.currentPiece)
+	g.renderer.RenderScore(tempImage, g.CurrentScore)
+	g.renderNextPiecePreview(tempImage)
 	
 	// Render particles on top of everything
 	if g.particleSystem != nil {
-		g.particleSystem.Draw(screen)
+		g.particleSystem.Draw(tempImage)
 	}
+	
+	// Apply shake offset when drawing to screen
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(shakeX, shakeY)
+	screen.DrawImage(tempImage, op)
 }
 
 func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {
@@ -166,6 +183,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	renderer := NewGameRenderer(gameboard, blockManager)
 	particleSystem := NewParticleSystem()
 	audioManager := NewAudioManager()
+	screenShake := NewScreenShake()
 	
 	// Initialize audio
 	err := audioManager.Initialize()
@@ -183,6 +201,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 		renderer:       renderer,
 		particleSystem: particleSystem,
 		audioManager:   audioManager,
+		screenShake:    screenShake,
 		fallTimer:      fallTimer,
 		CurrentScore:   0,
 		lastUpdateTime: time.Now(),
@@ -196,6 +215,11 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	// Set up the audio callback for block breaking sounds
 	gameLogic.SetAudioCallback(func(blocksRemoved int) {
 		audioManager.PlayBlockBreakMultiple(blocksRemoved)
+		
+		// Trigger screen shake based on number of blocks removed
+		intensity := float64(blocksRemoved) * 2.0 // 2 pixels per block
+		duration := 0.2 + float64(blocksRemoved)*0.05 // Longer shake for more blocks
+		screenShake.StartShake(intensity, duration)
 	})
 
 	// Generate initial next piece
