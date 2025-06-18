@@ -153,3 +153,17 @@ func (am *AudioManager) StopBackgroundMusic() {
 		am.backgroundMusicPlayer.Pause()
 	}
 }
+
+// PauseBackgroundMusic pauses the background music
+func (am *AudioManager) PauseBackgroundMusic() {
+	if am.backgroundMusicPlayer != nil {
+		am.backgroundMusicPlayer.Pause()
+	}
+}
+
+// ResumeBackgroundMusic resumes the background music
+func (am *AudioManager) ResumeBackgroundMusic() {
+	if am.backgroundMusicPlayer != nil {
+		am.backgroundMusicPlayer.Play()
+	}
+}
