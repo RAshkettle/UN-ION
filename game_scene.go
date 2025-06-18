@@ -38,6 +38,17 @@ type GameScene struct {
 	CurrentScore   int
 	lastUpdateTime time.Time
 	isPaused       bool
+	
+	// Reusable images to avoid per-frame allocations
+	tempImage     *ebiten.Image
+	particleImage *ebiten.Image
+	blocksImage   *ebiten.Image
+	pauseOverlay  *ebiten.Image
+	
+	// Reusable draw options to avoid per-frame allocations
+	shakeOp     *ebiten.DrawImageOptions
+	particleOp  *ebiten.DrawImageOptions
+	blocksOp    *ebiten.DrawImageOptions
 }
 
 func (g *GameScene) Update() error {
@@ -97,8 +108,15 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	// Get screen shake offset
 	shakeX, shakeY := g.screenShake.GetOffset()
 
-	// Create a temporary image for shaken content
-	tempImage := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
+	// Ensure temp images are the right size (only recreate if size changed)
+	screenW, screenH := screen.Bounds().Dx(), screen.Bounds().Dy()
+	if g.tempImage == nil || g.tempImage.Bounds().Dx() != screenW || g.tempImage.Bounds().Dy() != screenH {
+		g.tempImage = ebiten.NewImage(screenW, screenH)
+		g.particleImage = ebiten.NewImage(screenW, screenH)
+	}
+	
+	// Clear temp image
+	g.tempImage.Clear()
 
 	// Calculate drop shadow for current piece
 	var shadowPiece *TetrisPiece
@@ -107,29 +125,29 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	}
 
 	// Render game with drop shadow
-	g.renderGameWithShadow(tempImage, shadowPiece)
-	g.renderer.RenderScore(tempImage, g.CurrentScore)
-	g.renderNextPiecePreview(tempImage)
+	g.renderGameWithShadow(g.tempImage, shadowPiece)
+	g.renderer.RenderScore(g.tempImage, g.CurrentScore)
+	g.renderNextPiecePreview(g.tempImage)
 
 	// Render score popups first
 	if g.scorePopups != nil {
-		g.scorePopups.Draw(tempImage)
+		g.scorePopups.Draw(g.tempImage)
 	}
 
 	// Apply shake offset when drawing to screen
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(shakeX, shakeY)
-	screen.DrawImage(tempImage, op)
+	g.shakeOp.GeoM.Reset()
+	g.shakeOp.GeoM.Translate(shakeX, shakeY)
+	screen.DrawImage(g.tempImage, g.shakeOp)
 
 	// Render particles ABSOLUTELY LAST, directly to screen with shake offset
 	if g.particleSystem != nil {
-		particleOp := &ebiten.DrawImageOptions{}
-		particleOp.GeoM.Translate(shakeX, shakeY)
+		g.particleOp.GeoM.Reset()
+		g.particleOp.GeoM.Translate(shakeX, shakeY)
 
-		// Create a temporary image just for particles
-		particleImage := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
-		g.particleSystem.Draw(particleImage)
-		screen.DrawImage(particleImage, particleOp)
+		// Clear and reuse particle image
+		g.particleImage.Clear()
+		g.particleSystem.Draw(g.particleImage)
+		screen.DrawImage(g.particleImage, g.particleOp)
 	}
 
 	// Draw pause overlay if paused
@@ -147,8 +165,13 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 	// Calculate block size for rendering
 	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
 
-	// Create a temporary image for all blocks
-	blocksImage := ebiten.NewImage(g.gameboard.Width, g.gameboard.Height)
+	// Ensure blocks image is the right size (only recreate if size changed)
+	if g.blocksImage == nil || g.blocksImage.Bounds().Dx() != g.gameboard.Width || g.blocksImage.Bounds().Dy() != g.gameboard.Height {
+		g.blocksImage = ebiten.NewImage(g.gameboard.Width, g.gameboard.Height)
+	}
+	
+	// Clear blocks image
+	g.blocksImage.Clear()
 
 	// Draw placed blocks first
 	for _, block := range g.gameLogic.GetPlacedBlocks() {
@@ -159,9 +182,9 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 
 		// Use transformed drawing for arcing blocks, normal drawing for others
 		if block.IsArcing || rotation != 0.0 || scale != 1.0 {
-			g.blockManager.DrawBlockTransformed(blocksImage, block, worldX, worldY, rotation, scale, blockSize)
+			g.blockManager.DrawBlockTransformed(g.blocksImage, block, worldX, worldY, rotation, scale, blockSize)
 		} else {
-			g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
+			g.blockManager.DrawBlock(g.blocksImage, block, worldX, worldY, blockSize)
 		}
 	}
 
@@ -170,7 +193,7 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 		for _, block := range shadowPiece.Blocks {
 			worldX := float64(shadowPiece.X+block.X) * blockSize
 			worldY := float64(shadowPiece.Y+block.Y) * blockSize
-			g.blockManager.DrawShadowBlock(blocksImage, block, worldX, worldY, blockSize)
+			g.blockManager.DrawShadowBlock(g.blocksImage, block, worldX, worldY, blockSize)
 		}
 	}
 
@@ -179,7 +202,7 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 		for _, block := range g.currentPiece.Blocks {
 			worldX := float64(g.currentPiece.X+block.X) * blockSize
 			worldY := float64(g.currentPiece.Y+block.Y) * blockSize
-			g.blockManager.DrawBlock(blocksImage, block, worldX, worldY, blockSize)
+			g.blockManager.DrawBlock(g.blocksImage, block, worldX, worldY, blockSize)
 		}
 	}
 
@@ -188,13 +211,13 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 	for _, warning := range warnings {
 		worldX := float64(warning.Column) * blockSize
 		worldY := float64(warning.HighestBlockY) * blockSize
-		g.blockManager.DrawWarningSprite(blocksImage, worldX, worldY, warning.WarningTime, blockSize, warning.Column, g.gameboard.Width)
+		g.blockManager.DrawWarningSprite(g.blocksImage, worldX, worldY, warning.WarningTime, blockSize, warning.Column, g.gameboard.Width)
 	}
 
 	// Draw all blocks on top of the gameboard
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(float64(g.gameboard.X), float64(g.gameboard.Y))
-	screen.DrawImage(blocksImage, op)
+	g.blocksOp.GeoM.Reset()
+	g.blocksOp.GeoM.Translate(float64(g.gameboard.X), float64(g.gameboard.Y))
+	screen.DrawImage(g.blocksImage, g.blocksOp)
 }
 
 func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {
@@ -300,6 +323,12 @@ func NewGameScene(sm *SceneManager) *GameScene {
 		fallTimer:      fallTimer,
 		CurrentScore:   0,
 		lastUpdateTime: time.Now(),
+		
+		// Initialize reusable draw options to avoid per-frame allocations
+		shakeOp:    &ebiten.DrawImageOptions{},
+		particleOp: &ebiten.DrawImageOptions{},
+		blocksOp:   &ebiten.DrawImageOptions{},
+		// tempImage, particleImage, and blocksImage will be created lazily in Draw()
 	}
 
 	// Set up the explosion callback for particle effects
@@ -398,10 +427,15 @@ func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
 		return
 	}
 
+	// Ensure pause overlay is the right size (only recreate if size changed)
+	screenW, screenH := screen.Bounds().Dx(), screen.Bounds().Dy()
+	if g.pauseOverlay == nil || g.pauseOverlay.Bounds().Dx() != screenW || g.pauseOverlay.Bounds().Dy() != screenH {
+		g.pauseOverlay = ebiten.NewImage(screenW, screenH)
+		g.pauseOverlay.Fill(color.RGBA{0, 0, 0, 128}) // 50% transparent black
+	}
+	
 	// Draw semi-transparent overlay
-	overlay := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
-	overlay.Fill(color.RGBA{0, 0, 0, 128}) // 50% transparent black
-	screen.DrawImage(overlay, nil)
+	screen.DrawImage(g.pauseOverlay, nil)
 
 	// Draw "PAUSED" text in the center
 	centerX := screen.Bounds().Dx() / 2

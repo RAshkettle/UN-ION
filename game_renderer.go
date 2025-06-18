@@ -16,6 +16,10 @@ type GameRenderer struct {
 	blockManager *BlockManager
 	scoreFont    *text.GoTextFace
 	scoreLabelFont *text.GoTextFace
+	
+	// Reusable text draw options to avoid per-frame allocations
+	labelOp *text.DrawOptions
+	scoreOp *text.DrawOptions
 }
 
 // NewGameRenderer creates a new game renderer
@@ -38,6 +42,10 @@ func NewGameRenderer(gameboard *Gameboard, blockManager *BlockManager) *GameRend
 		blockManager:   blockManager,
 		scoreFont:      scoreFont,
 		scoreLabelFont: scoreLabelFont,
+		
+		// Initialize reusable text draw options
+		labelOp: &text.DrawOptions{},
+		scoreOp: &text.DrawOptions{},
 	}
 }
 
@@ -139,17 +147,19 @@ func (gr *GameRenderer) RenderScore(screen *ebiten.Image, currentScore int) {
 	scoreY := max(margin, gr.gameboard.Y - 15) // Position above the gameboard, with more space for larger font
 
 	// Draw "SCORE" label
-	labelOp := &text.DrawOptions{}
-	labelOp.GeoM.Translate(float64(scoreX), float64(scoreY))
-	labelOp.ColorScale.ScaleWithColor(color.RGBA{200, 200, 255, 255})
-	text.Draw(screen, "SCORE", gr.scoreLabelFont, labelOp)
+	gr.labelOp.GeoM.Reset()
+	gr.labelOp.GeoM.Translate(float64(scoreX), float64(scoreY))
+	gr.labelOp.ColorScale.Reset()
+	gr.labelOp.ColorScale.ScaleWithColor(color.RGBA{200, 200, 255, 255})
+	text.Draw(screen, "SCORE", gr.scoreLabelFont, gr.labelOp)
 
 	// Draw the actual score value with large, bold font
 	scoreText := fmt.Sprintf("%d", currentScore)
-	scoreOp := &text.DrawOptions{}
-	scoreOp.GeoM.Translate(float64(scoreX), float64(scoreY+25)) // More space for larger font
-	scoreOp.ColorScale.ScaleWithColor(color.RGBA{255, 255, 100, 255}) // Bright yellow for emphasis
-	text.Draw(screen, scoreText, gr.scoreFont, scoreOp)
+	gr.scoreOp.GeoM.Reset()
+	gr.scoreOp.GeoM.Translate(float64(scoreX), float64(scoreY+25)) // More space for larger font
+	gr.scoreOp.ColorScale.Reset()
+	gr.scoreOp.ColorScale.ScaleWithColor(color.RGBA{255, 255, 100, 255}) // Bright yellow for emphasis
+	text.Draw(screen, scoreText, gr.scoreFont, gr.scoreOp)
 }
 
 // RenderDropShadow draws a translucent preview of where the piece will land
