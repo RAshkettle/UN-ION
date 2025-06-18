@@ -1042,17 +1042,35 @@ func (gl *GameLogic) UpdateArcingBlocks(deltaTime float64) bool {
 			if block.ArcProgress >= 1.0 {
 				block.ArcProgress = 1.0
 				
-				// Move block to final position
-				block.X = int(block.ArcTargetX)
-				block.Y = int(block.ArcTargetY)
+				// Calculate final resting position (where the block should land)
+				blockSize := gl.blockManager.GetScaledBlockSize(gl.gameboard.Width, gl.gameboard.Height)
+				gameboardHeightInBlocks := int(float64(gl.gameboard.Height) / blockSize)
 				
-				// End arc animation and start normal falling
+				targetColumn := int(block.ArcTargetX)
+				finalY := gameboardHeightInBlocks - 1 // Start from bottom
+				
+				// Find the highest occupied position in the target column
+				for _, placedBlock := range gl.placedBlocks {
+					if &placedBlock != block && placedBlock.X == targetColumn && placedBlock.Y < finalY {
+						finalY = placedBlock.Y - 1
+					}
+				}
+				
+				// Ensure we don't go above the board
+				if finalY < 0 {
+					finalY = 0
+				}
+				
+				// Move block directly to final resting position
+				block.X = targetColumn
+				block.Y = finalY
+				
+				// End arc animation
 				block.IsArcing = false
 				block.ArcScale = 1.0
 				block.ArcRotation = 0.0
 				
-				// Start falling animation if needed
-				gl.StartBlockFall(block)
+				// No falling animation needed - block is already in place
 				anyBlocksFinishedArcing = true
 			}
 		}
