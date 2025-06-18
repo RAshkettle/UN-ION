@@ -282,10 +282,10 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	gameboard := NewGameboard(192, 320) // 192px wide, 320px tall
 	blockManager := NewBlockManager()
 	gameLogic := NewGameLogic(gameboard, blockManager)
-	inputHandler := NewInputHandler(gameLogic)
+	audioManager := NewAudioManager()
+	inputHandler := NewInputHandler(gameLogic, audioManager)
 	renderer := NewGameRenderer(gameboard, blockManager)
 	particleSystem := NewParticleSystem()
-	audioManager := NewAudioManager()
 	screenShake := NewScreenShake()
 	scorePopups := NewScorePopupSystem()
 	

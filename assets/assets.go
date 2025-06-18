@@ -16,7 +16,8 @@ var (
 	NegativeChargeSprite = loadImage("images/NegativeCharge.png")
 	NeutralChargeSprite  = loadImage("images/NeutralCharge.png")
 
-	BlockBreakSound = loadAudio("audio/breakblock.ogg")
+	BlockBreakSound = loadAudio("audio/coin.ogg")
+	SwooshSound = loadAudio("audio/swoosh.ogg")
 )
 
 func loadImage(filePath string) *ebiten.Image {

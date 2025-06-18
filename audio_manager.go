@@ -12,6 +12,7 @@ import (
 type AudioManager struct {
 	audioContext      *audio.Context
 	blockBreakPlayer  *audio.Player
+	swooshPlayer      *audio.Player
 }
 
 // NewAudioManager creates a new audio manager
@@ -32,6 +33,17 @@ func (am *AudioManager) Initialize() error {
 	}
 	
 	am.blockBreakPlayer, err = am.audioContext.NewPlayer(blockBreakStream)
+	if err != nil {
+		return err
+	}
+	
+	// Load swoosh sound
+	swooshStream, err := vorbis.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.SwooshSound))
+	if err != nil {
+		return err
+	}
+	
+	am.swooshPlayer, err = am.audioContext.NewPlayer(swooshStream)
 	if err != nil {
 		return err
 	}
@@ -80,4 +92,15 @@ func (am *AudioManager) PlayBlockBreakMultiple(count int) {
 			}
 		}()
 	}
+}
+
+// PlaySwooshSound plays a subtle swoosh sound for piece movement
+func (am *AudioManager) PlaySwooshSound() {
+	if am.swooshPlayer == nil {
+		return
+	}
+	
+	// Rewind to start and play the dedicated swoosh sound
+	am.swooshPlayer.Rewind()
+	am.swooshPlayer.Play()
 }
