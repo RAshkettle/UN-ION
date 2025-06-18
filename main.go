@@ -13,7 +13,8 @@ func main() {
 
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowTitle("Un-ion")
-	ebiten.SetWindowSize(320, 320)
+	ebiten.SetWindowSize(1200, 800) // Much larger initial size
+	// ebiten.SetFullscreen(true) // Uncomment for true fullscreen
 
 	sceneManager := NewSceneManager()
 
