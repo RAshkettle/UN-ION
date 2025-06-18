@@ -409,13 +409,16 @@ func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
 	text.Draw(screen, resumeText, fontFace, resumeX, resumeY, color.RGBA{200, 200, 200, 255})
 }
 
-// updateWobblingBlocks updates wobbling blocks and handles chain reactions
+// updateWobblingBlocks updates wobbling blocks and electrical storms, handles chain reactions
 func (g *GameScene) updateWobblingBlocks(dt float64) {
 	// Update wobbling animation
 	anyBlocksFinished := g.gameLogic.UpdateWobblingBlocks(dt)
 	
+	// Update electrical storm animation (visual effects only, no removal)
+	g.gameLogic.UpdateElectricalStorms(dt)
+	
+	// Handle finished wobbling blocks
 	if anyBlocksFinished {
-		// Remove finished wobbling blocks
 		removedCount := g.gameLogic.RemoveFinishedWobblingBlocks()
 		
 		if removedCount > 0 {
@@ -424,6 +427,8 @@ func (g *GameScene) updateWobblingBlocks(dt float64) {
 			
 			// Check for new chain reactions
 			reactionScore := g.gameLogic.CheckForNewReactions()
+			g.gameLogic.CheckForElectricalStorms() // Check for new storms (visual only)
+			
 			if reactionScore > 0 {
 				g.CurrentScore += reactionScore
 				
@@ -445,8 +450,12 @@ func (g *GameScene) placePieceAndCheckReactions() {
 	// Place the piece
 	g.gameLogic.PlacePiece(g.currentPiece)
 
-	// Check for new reactions and start wobbling on blocks
+	// Check for new horizontal reactions and start wobbling on blocks
 	reactionScore := g.gameLogic.CheckForNewReactions()
+	
+	// Check for electrical storms (vertical sequences of 4+ same type) - visual effect only
+	g.gameLogic.CheckForElectricalStorms()
+	
 	if reactionScore > 0 {
 		g.CurrentScore += reactionScore
 		

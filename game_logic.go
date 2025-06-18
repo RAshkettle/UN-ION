@@ -491,6 +491,9 @@ func (gl *GameLogic) RemoveFinishedWobblingBlocks() int {
 	// Update placed blocks
 	gl.placedBlocks = remainingBlocks
 	
+	// Clean up any invalid storms after removing blocks
+	gl.ClearInvalidStorms()
+	
 	return len(blocksToRemove)
 }
 
@@ -575,3 +578,164 @@ func (gl *GameLogic) findNonWobblingBlocksToRemove() []Block {
 
 	return blocksToRemove
 }
+
+// findVerticalElectricalStorms finds vertical sequences of 4+ positive or negative blocks
+func (gl *GameLogic) findVerticalElectricalStorms() []Block {
+	var stormBlocks []Block
+
+	// Group ALL blocks by column (X coordinate) - including existing storm blocks
+	columnMap := make(map[int][]Block)
+	for _, block := range gl.placedBlocks {
+		if !block.IsWobbling && block.BlockType != NeutralBlock {
+			columnMap[block.X] = append(columnMap[block.X], block)
+		}
+	}
+
+	// Process each column
+	for _, columnBlocks := range columnMap {
+		if len(columnBlocks) < 4 {
+			continue // Need at least 4 blocks for electrical storm
+		}
+
+		// Sort blocks by Y position (top to bottom)
+		for i := 0; i < len(columnBlocks); i++ {
+			for j := i + 1; j < len(columnBlocks); j++ {
+				if columnBlocks[i].Y > columnBlocks[j].Y {
+					columnBlocks[i], columnBlocks[j] = columnBlocks[j], columnBlocks[i]
+				}
+			}
+		}
+
+		// Find contiguous vertical sequences of same type
+		stormSequences := gl.findVerticalStormSequences(columnBlocks)
+
+		// Add all storm sequences to the result
+		for _, sequence := range stormSequences {
+			stormBlocks = append(stormBlocks, sequence...)
+		}
+	}
+
+	return stormBlocks
+}
+
+// findVerticalStormSequences finds contiguous vertical sequences of 4+ same-type blocks
+func (gl *GameLogic) findVerticalStormSequences(columnBlocks []Block) [][]Block {
+	var sequences [][]Block
+	var currentSequence []Block
+	var currentType BlockType = -1
+
+	for i, block := range columnBlocks {
+		// Check if this block continues the current sequence
+		if block.BlockType == currentType && (i == 0 || block.Y == columnBlocks[i-1].Y+1) {
+			// Continue the sequence
+			currentSequence = append(currentSequence, block)
+		} else {
+			// Sequence broken - check if previous sequence was long enough for storm
+			if len(currentSequence) >= 4 {
+				sequences = append(sequences, currentSequence)
+			}
+			// Start new sequence
+			currentSequence = []Block{block}
+			currentType = block.BlockType
+		}
+	}
+
+	// Don't forget the last sequence
+	if len(currentSequence) >= 4 {
+		sequences = append(sequences, currentSequence)
+	}
+
+	return sequences
+}
+
+// StartElectricalStorm marks blocks as being in an electrical storm
+func (gl *GameLogic) StartElectricalStorm(stormBlocks []Block) {
+	if len(stormBlocks) == 0 {
+		return
+	}
+	
+	// Create a map for fast lookup
+	stormMap := make(map[string]bool)
+	for _, block := range stormBlocks {
+		key := fmt.Sprintf("%d,%d", block.X, block.Y)
+		stormMap[key] = true
+	}
+	
+	// Mark matching blocks as being in storm (or refresh existing storm blocks)
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		key := fmt.Sprintf("%d,%d", block.X, block.Y)
+		if stormMap[key] {
+			if !block.IsInStorm {
+				// New block joining the storm
+				block.IsInStorm = true
+				block.StormTime = 0
+				block.StormPhase = 0
+				block.SparkPhase = 0
+			}
+			// Note: We don't reset storm time for existing storm blocks,
+			// so they maintain their continuous animation
+		}
+	}
+}
+
+// UpdateElectricalStorms updates the storm animation for all storm blocks
+// Storms are purely visual effects and don't destroy blocks
+func (gl *GameLogic) UpdateElectricalStorms(deltaTime float64) {
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		if block.IsInStorm {
+			// Update storm animation phases
+			block.StormTime += deltaTime
+			block.StormPhase += deltaTime * StormFrequency * 2 * math.Pi
+			block.SparkPhase += deltaTime * SparkFrequency * 2 * math.Pi
+			
+			// Storm effects continue indefinitely (until block is removed by other means)
+		}
+	}
+}
+
+// ClearInvalidStorms removes storm status from blocks that are no longer part of valid storm sequences
+func (gl *GameLogic) ClearInvalidStorms() {
+	// Find all blocks that should currently be in storms
+	validStormBlocks := gl.findVerticalElectricalStorms()
+	
+	// Create a map for fast lookup of valid storm positions
+	validStormMap := make(map[string]bool)
+	for _, block := range validStormBlocks {
+		key := fmt.Sprintf("%d,%d", block.X, block.Y)
+		validStormMap[key] = true
+	}
+	
+	// Clear storm status from blocks that are no longer part of valid storms
+	for i := range gl.placedBlocks {
+		block := &gl.placedBlocks[i]
+		if block.IsInStorm {
+			key := fmt.Sprintf("%d,%d", block.X, block.Y)
+			if !validStormMap[key] {
+				// This block is no longer part of a valid storm
+				block.IsInStorm = false
+				block.StormTime = 0
+				block.StormPhase = 0
+				block.SparkPhase = 0
+			}
+		}
+	}
+}
+
+// CheckForElectricalStorms finds vertical sequences and starts electrical storms
+// Returns 0 since storms are visual effects only (no points for non-destructive effects)
+func (gl *GameLogic) CheckForElectricalStorms() int {
+	stormBlocks := gl.findVerticalElectricalStorms()
+	
+	if len(stormBlocks) == 0 {
+		return 0
+	}
+	
+	// Start electrical storm on these blocks (visual effect only)
+	gl.StartElectricalStorm(stormBlocks)
+	
+	// No score for electrical storms since they don't destroy blocks
+	return 0
+}
+
