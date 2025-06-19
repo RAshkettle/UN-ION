@@ -8,13 +8,13 @@ import (
 )
 
 type InputHandler struct {
-	gameLogic    *GameLogic
-	audioManager *AudioManager
+	gameLogic        *GameLogic
+	audioManager     *AudioManager
 	leftRepeatTimer  time.Time
 	rightRepeatTimer time.Time
 	downRepeatTimer  time.Time
-	initialDelay time.Duration
-	repeatDelay  time.Duration
+	initialDelay     time.Duration
+	repeatDelay      time.Duration
 }
 
 func NewInputHandler(gameLogic *GameLogic, audioManager *AudioManager) *InputHandler {
@@ -105,7 +105,6 @@ func (ih *InputHandler) HandleInput(currentPiece *TetrisPiece, currentType Piece
 
 	return shouldPlace
 }
-
 
 func (ih *InputHandler) triggerHardDropShake(dropHeight int) {
 	if ih.gameLogic.hardDropCallback != nil {

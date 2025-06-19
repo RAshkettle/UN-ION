@@ -21,12 +21,10 @@ type ScorePopup struct {
 	Scale   float64
 }
 
-
 type ScorePopupSystem struct {
 	popups []ScorePopup
-	font   *text.GoTextFace 
+	font   *text.GoTextFace
 }
-
 
 func NewScorePopupSystem() *ScorePopupSystem {
 	fontSource, _ := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
@@ -40,14 +38,13 @@ func NewScorePopupSystem() *ScorePopupSystem {
 	}
 }
 
-
 func (sps *ScorePopupSystem) AddScorePopup(x, y float64, score int) {
 	popup := ScorePopup{
 		X:       x,
 		Y:       y,
 		VX:      0,
-		VY:      -30.0, 
-		Life:    1.5,   
+		VY:      -30.0,
+		Life:    1.5,
 		MaxLife: 1.5,
 		Score:   score,
 		Alpha:   1.0,
@@ -61,14 +58,11 @@ func (sps *ScorePopupSystem) Update(dt float64) {
 	for i := len(sps.popups) - 1; i >= 0; i-- {
 		popup := &sps.popups[i]
 
-
 		popup.X += popup.VX * dt
 		popup.Y += popup.VY * dt
 
-
-		dampingFactor := math.Pow(0.95, dt*60.0) 
+		dampingFactor := math.Pow(0.95, dt*60.0)
 		popup.VY *= dampingFactor
-
 
 		popup.Life -= dt
 
@@ -98,7 +92,6 @@ func (sps *ScorePopupSystem) Update(dt float64) {
 	}
 }
 
-
 func (sps *ScorePopupSystem) Draw(screen *ebiten.Image) {
 	for _, popup := range sps.popups {
 		if popup.Alpha <= 0 {
@@ -107,12 +100,10 @@ func (sps *ScorePopupSystem) Draw(screen *ebiten.Image) {
 
 		scoreText := fmt.Sprintf("+%d", popup.Score)
 
-
 		alpha := uint8(popup.Alpha * 255)
-		textColor := color.RGBA{255, 255, 0, alpha} 
+		textColor := color.RGBA{255, 255, 0, alpha}
 
-		
-		if popup.Scale > 0.7 { 
+		if popup.Scale > 0.7 {
 			op := &text.DrawOptions{}
 			op.GeoM.Translate(popup.X, popup.Y)
 			op.ColorScale.ScaleWithColor(textColor)
@@ -120,7 +111,6 @@ func (sps *ScorePopupSystem) Draw(screen *ebiten.Image) {
 		}
 	}
 }
-
 
 func (sps *ScorePopupSystem) HasActivePopups() bool {
 	return len(sps.popups) > 0

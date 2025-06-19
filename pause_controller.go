@@ -21,7 +21,6 @@ var pauseSubtitleFont = &text.GoTextFace{
 	Size:   24,
 }
 
-
 type PauseController struct {
 	gameState    *GameState
 	audioManager *AudioManager
@@ -33,7 +32,6 @@ func NewPauseController(gameState *GameState, audioManager *AudioManager) *Pause
 		audioManager: audioManager,
 	}
 }
-
 
 func (pc *PauseController) Update() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
@@ -47,7 +45,6 @@ func (pc *PauseController) Update() {
 	}
 }
 
-
 func (pc *PauseController) Draw(screen *ebiten.Image) {
 	if !pc.gameState.IsPaused {
 		return
@@ -55,9 +52,8 @@ func (pc *PauseController) Draw(screen *ebiten.Image) {
 
 	// Draw semi-transparent overlay
 	overlay := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
-	overlay.Fill(color.RGBA{0, 0, 0, 128}) 
+	overlay.Fill(color.RGBA{0, 0, 0, 128})
 	screen.DrawImage(overlay, nil)
-
 
 	centerX := screen.Bounds().Dx() / 2
 	centerY := screen.Bounds().Dy() / 2
@@ -70,7 +66,6 @@ func (pc *PauseController) Draw(screen *ebiten.Image) {
 	pausedOp.GeoM.Translate(float64(pausedX), float64(pausedY))
 	pausedOp.ColorScale.ScaleWithColor(color.RGBA{220, 220, 255, 255})
 	text.Draw(screen, pausedText, pauseTitleFont, pausedOp)
-
 
 	resumeText := "Press P to Resume"
 	resumeAdvance, _ := text.Measure(resumeText, pauseSubtitleFont, 0)

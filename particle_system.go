@@ -18,18 +18,15 @@ type Particle struct {
 	R, G, B, A float64
 }
 
-
 type ParticleSystem struct {
 	particles []Particle
 }
-
 
 func NewParticleSystem() *ParticleSystem {
 	return &ParticleSystem{
 		particles: make([]Particle, 0),
 	}
 }
-
 
 func (ps *ParticleSystem) applyColorVariation(baseR, baseG, baseB float64) (float64, float64, float64) {
 	r := baseR + (rand.Float64()-0.5)*0.3
@@ -58,9 +55,8 @@ func (ps *ParticleSystem) applyColorVariation(baseR, baseG, baseB float64) (floa
 	return r, g, b
 }
 
-
 func (ps *ParticleSystem) AddExplosion(worldX, worldY float64, blockType BlockType) {
-	numParticles := 8 + rand.Intn(5) 
+	numParticles := 8 + rand.Intn(5)
 
 	var baseR, baseG, baseB float64
 	switch blockType {
@@ -68,21 +64,21 @@ func (ps *ParticleSystem) AddExplosion(worldX, worldY float64, blockType BlockTy
 		baseR, baseG, baseB = 1.0, 0.2, 0.2
 	case NegativeBlock:
 		baseR, baseG, baseB = 0.2, 0.2, 1.0
-	default :
+	default:
 		baseR, baseG, baseB = 0.8, 0.8, 0.8
 	}
 	for i := 0; i < numParticles; i++ {
 		angle := rand.Float64() * 2 * math.Pi
 
-		speed := 20.0 + rand.Float64()*40.0 
+		speed := 20.0 + rand.Float64()*40.0
 
 		vx := math.Cos(angle) * speed
 		vy := math.Sin(angle) * speed
 
-		vy -= 10.0 
+		vy -= 10.0
 
-		maxLife := 0.3 + rand.Float64()*0.2 
-		
+		maxLife := 0.3 + rand.Float64()*0.2
+
 		size := 1.5 + rand.Float64()*2.5
 
 		r, g, b := ps.applyColorVariation(baseR, baseG, baseB)

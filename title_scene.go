@@ -49,25 +49,24 @@ func (t *TitleScene) drawTitleScreen(screen *ebiten.Image) {
 	op2.ColorScale.ScaleWithColor(color.RGBA{180, 180, 200, 255})
 	text.Draw(screen, subtitleText, t.subtitleFont, op2)
 
-	// Draw help prompt 
+	// Draw help prompt
 	helpPrompt := "Press H for Help"
-	helpPromptBounds, _ := text.Measure(helpPrompt, t.subtitleFont, 0) 
+	helpPromptBounds, _ := text.Measure(helpPrompt, t.subtitleFont, 0)
 	helpPromptX := (w - int(helpPromptBounds)) / 2
 	helpPromptY := subtitleY + 50 // More space from subtitle
 
 	op3 := &text.DrawOptions{}
 	op3.GeoM.Translate(float64(helpPromptX), float64(helpPromptY))
-	op3.ColorScale.ScaleWithColor(color.RGBA{255, 255, 100, 255}) 
-	text.Draw(screen, helpPrompt, t.subtitleFont, op3)           
+	op3.ColorScale.ScaleWithColor(color.RGBA{255, 255, 100, 255})
+	text.Draw(screen, helpPrompt, t.subtitleFont, op3)
 
-	
 	controls := []string{
 		"Quick Controls:",
 		"WASD/Arrow Keys: Move piece",
 		"Space: Rotate piece",
 	}
 
-	helpStartY := helpPromptY + 40 
+	helpStartY := helpPromptY + 40
 	for i, control := range controls {
 		controlBounds, _ := text.Measure(control, t.helpFont, 0)
 		controlX := (w - int(controlBounds)) / 2
@@ -91,7 +90,6 @@ func (t *TitleScene) Update() error {
 	}
 	t.prevHPressed = hPressed
 
-
 	if ebiten.IsKeyPressed(ebiten.KeySpace) ||
 		ebiten.IsKeyPressed(ebiten.KeyEnter) ||
 		ebiten.IsKeyPressed(ebiten.KeyEscape) ||
@@ -102,7 +100,6 @@ func (t *TitleScene) Update() error {
 		t.sceneManager.TransitionTo(SceneGame)
 		return nil
 	}
-
 
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) ||
 		inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
@@ -133,7 +130,7 @@ func NewTitleScene(sm *SceneManager) *TitleScene {
 	helpFontSource, _ := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
 	helpFont := &text.GoTextFace{
 		Source: helpFontSource,
-		Size:   12, 
+		Size:   12,
 	}
 
 	return &TitleScene{

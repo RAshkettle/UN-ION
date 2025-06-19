@@ -5,7 +5,6 @@ import (
 	"math/rand"
 )
 
-
 type ScreenShake struct {
 	intensity   float64
 	duration    float64
@@ -14,7 +13,6 @@ type ScreenShake struct {
 	offsetY     float64
 	isShaking   bool
 }
-
 
 func NewScreenShake() *ScreenShake {
 	return &ScreenShake{}
@@ -26,7 +24,6 @@ func (ss *ScreenShake) StartShake(intensity, duration float64) {
 	ss.currentTime = 0
 	ss.isShaking = true
 }
-
 
 func (ss *ScreenShake) Update(deltaTime float64) {
 	if !ss.isShaking {
@@ -54,11 +51,9 @@ func (ss *ScreenShake) Update(deltaTime float64) {
 	ss.offsetY = math.Sin(angle) * currentIntensity
 }
 
-
 func (ss *ScreenShake) GetOffset() (float64, float64) {
 	return ss.offsetX, ss.offsetY
 }
-
 
 func (ss *ScreenShake) IsShaking() bool {
 	return ss.isShaking

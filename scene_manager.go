@@ -23,7 +23,7 @@ type SceneManager struct {
 	titleScene   *TitleScene
 	gameScene    *GameScene
 	endScene     *EndScene
-	helpScene    *HelpScene 
+	helpScene    *HelpScene
 }
 
 func (sm *SceneManager) Update() error {
@@ -58,14 +58,14 @@ func (sm *SceneManager) TransitionTo(sceneType SceneType) {
 	switch sceneType {
 	case SceneTitleScreen:
 		sm.currentScene = sm.titleScene
-		sm.titleScene.prevHPressed = true 
+		sm.titleScene.prevHPressed = true
 	case SceneGame:
 		sm.currentScene = sm.gameScene
 	case SceneEndScreen:
 		sm.currentScene = sm.endScene
 	case SceneHelp:
 		sm.currentScene = sm.helpScene
-		sm.helpScene.prevHPressed = true 
+		sm.helpScene.prevHPressed = true
 	}
 }
 

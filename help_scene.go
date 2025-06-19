@@ -14,7 +14,7 @@ type HelpScene struct {
 	subtitleFont *text.GoTextFace
 	helpFont     *text.GoTextFace
 	sceneManager *SceneManager
-	prevHPressed bool 
+	prevHPressed bool
 }
 
 func NewHelpScene(sm *SceneManager) *HelpScene {
@@ -47,11 +47,9 @@ func NewHelpScene(sm *SceneManager) *HelpScene {
 func (h *HelpScene) Draw(screen *ebiten.Image) {
 	w, hgt := screen.Bounds().Dx(), screen.Bounds().Dy()
 
-
 	overlayImg := ebiten.NewImage(w, hgt)
 	overlayImg.Fill(color.RGBA{5, 10, 20, 220})
 	screen.DrawImage(overlayImg, &ebiten.DrawImageOptions{})
-
 
 	titleText := "HOW TO PLAY UN-ION"
 	titleBounds, _ := text.Measure(titleText, h.titleFont, 0)
@@ -117,7 +115,6 @@ func (h *HelpScene) Draw(screen *ebiten.Image) {
 		text.Draw(screen, section.title, h.subtitleFont, sectionOp)
 		currentY += lineHeight + 5
 
-
 		for _, line := range section.lines {
 			lineOp := &text.DrawOptions{}
 			lineBounds, _ := text.Measure(line, h.helpFont, 0)
@@ -129,7 +126,6 @@ func (h *HelpScene) Draw(screen *ebiten.Image) {
 		}
 		currentY += sectionSpacing
 	}
-
 
 	footerText := "Press H to close help and return to title screen"
 	footerBounds, _ := text.Measure(footerText, h.helpFont, 0)
