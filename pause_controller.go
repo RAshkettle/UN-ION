@@ -1,21 +1,32 @@
 package main
 
 import (
+	"bytes"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/text"
-	"golang.org/x/image/font/basicfont"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/font/gofont/goregular"
 )
 
-// PauseController handles pause functionality
+var pauseTitleFontSource, _ = text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+var pauseTitleFont = &text.GoTextFace{
+	Source: pauseTitleFontSource,
+	Size:   48,
+}
+var pauseSubtitleFontSource, _ = text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+var pauseSubtitleFont = &text.GoTextFace{
+	Source: pauseSubtitleFontSource,
+	Size:   24,
+}
+
+
 type PauseController struct {
 	gameState    *GameState
 	audioManager *AudioManager
 }
 
-// NewPauseController creates a new pause controller
 func NewPauseController(gameState *GameState, audioManager *AudioManager) *PauseController {
 	return &PauseController{
 		gameState:    gameState,
@@ -23,7 +34,7 @@ func NewPauseController(gameState *GameState, audioManager *AudioManager) *Pause
 	}
 }
 
-// Update handles pause input
+
 func (pc *PauseController) Update() {
 	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
 		pc.gameState.TogglePause()
@@ -36,7 +47,7 @@ func (pc *PauseController) Update() {
 	}
 }
 
-// Draw renders the pause overlay if paused
+
 func (pc *PauseController) Draw(screen *ebiten.Image) {
 	if !pc.gameState.IsPaused {
 		return
@@ -44,27 +55,29 @@ func (pc *PauseController) Draw(screen *ebiten.Image) {
 
 	// Draw semi-transparent overlay
 	overlay := ebiten.NewImage(screen.Bounds().Dx(), screen.Bounds().Dy())
-	overlay.Fill(color.RGBA{0, 0, 0, 128}) // 50% transparent black
+	overlay.Fill(color.RGBA{0, 0, 0, 128}) 
 	screen.DrawImage(overlay, nil)
 
-	// Draw "PAUSED" text in the center
+
 	centerX := screen.Bounds().Dx() / 2
 	centerY := screen.Bounds().Dy() / 2
 
-	// Use basic font for text rendering
-	fontFace := basicfont.Face7x13
-
-	// Draw "PAUSED" text
 	pausedText := "PAUSED"
-	pausedBounds := text.BoundString(fontFace, pausedText)
-	pausedX := centerX - pausedBounds.Dx()/2
+	pausedAdvance, _ := text.Measure(pausedText, pauseTitleFont, 0)
+	pausedX := centerX - int(pausedAdvance)/2
 	pausedY := centerY - 10
-	text.Draw(screen, pausedText, fontFace, pausedX, pausedY, color.RGBA{255, 255, 255, 255})
+	pausedOp := &text.DrawOptions{}
+	pausedOp.GeoM.Translate(float64(pausedX), float64(pausedY))
+	pausedOp.ColorScale.ScaleWithColor(color.RGBA{220, 220, 255, 255})
+	text.Draw(screen, pausedText, pauseTitleFont, pausedOp)
 
-	// Draw "Press P to Resume" below
+
 	resumeText := "Press P to Resume"
-	resumeBounds := text.BoundString(fontFace, resumeText)
-	resumeX := centerX - resumeBounds.Dx()/2
+	resumeAdvance, _ := text.Measure(resumeText, pauseSubtitleFont, 0)
+	resumeX := centerX - int(resumeAdvance)/2
 	resumeY := centerY + 20
-	text.Draw(screen, resumeText, fontFace, resumeX, resumeY, color.RGBA{200, 200, 200, 255})
+	resumeOp := &text.DrawOptions{}
+	resumeOp.GeoM.Translate(float64(resumeX), float64(resumeY))
+	resumeOp.ColorScale.ScaleWithColor(color.RGBA{200, 200, 200, 255})
+	text.Draw(screen, resumeText, pauseSubtitleFont, resumeOp)
 }
