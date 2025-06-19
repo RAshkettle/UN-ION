@@ -63,7 +63,7 @@ func (t *TitleScene) drawTitleScreen(screen *ebiten.Image) {
 	op3 := &text.DrawOptions{}
 	op3.GeoM.Translate(float64(helpPromptX), float64(helpPromptY))
 	op3.ColorScale.ScaleWithColor(color.RGBA{255, 255, 100, 255}) // Bright yellow - very visible
-	text.Draw(screen, helpPrompt, t.subtitleFont, op3) // Use larger font
+	text.Draw(screen, helpPrompt, t.subtitleFont, op3)            // Use larger font
 
 	// Draw controls help - positioned right under the help prompt
 	controls := []string{
@@ -125,7 +125,7 @@ func (t *TitleScene) drawHelpOverlay(screen *ebiten.Image) {
 		{
 			title: "SCORING:",
 			lines: []string{
-				"4 blocks = 10 points", 
+				"4 blocks = 10 points",
 				"5 blocks = 20 points, 6 blocks = 40 points (doubles each block)",
 				"Chain reactions add to your total score!",
 			},

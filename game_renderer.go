@@ -12,11 +12,11 @@ import (
 
 // GameRenderer handles all rendering operations
 type GameRenderer struct {
-	gameboard    *Gameboard
-	blockManager *BlockManager
-	scoreFont    *text.GoTextFace
+	gameboard      *Gameboard
+	blockManager   *BlockManager
+	scoreFont      *text.GoTextFace
 	scoreLabelFont *text.GoTextFace
-	
+
 	// Reusable text draw options to avoid per-frame allocations
 	labelOp *text.DrawOptions
 	scoreOp *text.DrawOptions
@@ -42,7 +42,7 @@ func NewGameRenderer(gameboard *Gameboard, blockManager *BlockManager) *GameRend
 		blockManager:   blockManager,
 		scoreFont:      scoreFont,
 		scoreLabelFont: scoreLabelFont,
-		
+
 		// Initialize reusable text draw options
 		labelOp: &text.DrawOptions{},
 		scoreOp: &text.DrawOptions{},
@@ -144,7 +144,7 @@ func (gr *GameRenderer) RenderScore(screen *ebiten.Image, currentScore int) {
 	// Position score above the next piece preview area (top right)
 	margin := 10
 	scoreX := gr.gameboard.X + gr.gameboard.Width + 20 // Same X as preview area
-	scoreY := max(margin, gr.gameboard.Y - 15) // Position above the gameboard, with more space for larger font
+	scoreY := max(margin, gr.gameboard.Y-15)           // Position above the gameboard, with more space for larger font
 
 	// Draw "SCORE" label
 	gr.labelOp.GeoM.Reset()

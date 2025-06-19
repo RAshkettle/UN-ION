@@ -38,17 +38,17 @@ type GameScene struct {
 	CurrentScore   int
 	lastUpdateTime time.Time
 	isPaused       bool
-	
+
 	// Reusable images to avoid per-frame allocations
 	tempImage     *ebiten.Image
 	particleImage *ebiten.Image
 	blocksImage   *ebiten.Image
 	pauseOverlay  *ebiten.Image
-	
+
 	// Reusable draw options to avoid per-frame allocations
-	shakeOp     *ebiten.DrawImageOptions
-	particleOp  *ebiten.DrawImageOptions
-	blocksOp    *ebiten.DrawImageOptions
+	shakeOp    *ebiten.DrawImageOptions
+	particleOp *ebiten.DrawImageOptions
+	blocksOp   *ebiten.DrawImageOptions
 }
 
 func (g *GameScene) Update() error {
@@ -114,7 +114,7 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 		g.tempImage = ebiten.NewImage(screenW, screenH)
 		g.particleImage = ebiten.NewImage(screenW, screenH)
 	}
-	
+
 	// Clear temp image
 	g.tempImage.Clear()
 
@@ -169,7 +169,7 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 	if g.blocksImage == nil || g.blocksImage.Bounds().Dx() != g.gameboard.Width || g.blocksImage.Bounds().Dy() != g.gameboard.Height {
 		g.blocksImage = ebiten.NewImage(g.gameboard.Width, g.gameboard.Height)
 	}
-	
+
 	// Clear blocks image
 	g.blocksImage.Clear()
 
@@ -230,7 +230,7 @@ func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {
 
 	// Position the preview to the right of the gameboard
 	previewX := float64(g.gameboard.X + g.gameboard.Width + 20) // 20 pixels margin
-	previewY := float64(g.gameboard.Y + 100)                     // 66 pixels from top of gameboard (lowered by 16px)
+	previewY := float64(g.gameboard.Y + 100)                    // 66 pixels from top of gameboard (lowered by 16px)
 
 	// Scale the preview blocks to be smaller
 	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
@@ -323,7 +323,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 		fallTimer:      fallTimer,
 		CurrentScore:   0,
 		lastUpdateTime: time.Now(),
-		
+
 		// Initialize reusable draw options to avoid per-frame allocations
 		shakeOp:    &ebiten.DrawImageOptions{},
 		particleOp: &ebiten.DrawImageOptions{},
@@ -433,7 +433,7 @@ func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
 		g.pauseOverlay = ebiten.NewImage(screenW, screenH)
 		g.pauseOverlay.Fill(color.RGBA{0, 0, 0, 128}) // 50% transparent black
 	}
-	
+
 	// Draw semi-transparent overlay
 	screen.DrawImage(g.pauseOverlay, nil)
 

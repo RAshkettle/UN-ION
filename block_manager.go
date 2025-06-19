@@ -567,10 +567,11 @@ func (bm *BlockManager) DrawBlock(screen *ebiten.Image, block Block, worldX, wor
 		flickerIntensity := 0.2 + 0.1*math.Sin(block.SparkPhase*2)
 
 		// Color modulation for electrical effect
-		if block.BlockType == PositiveBlock {
+		switch block.BlockType {
+		case PositiveBlock:
 			// Positive blocks get more red/yellow during storms
 			op.ColorM.Scale(1.0+flickerIntensity, 1.0+flickerIntensity*0.5, 1.0-flickerIntensity*0.3, 1.0)
-		} else if block.BlockType == NegativeBlock {
+		case NegativeBlock:
 			// Negative blocks get more blue/cyan during storms
 			op.ColorM.Scale(1.0-flickerIntensity*0.3, 1.0+flickerIntensity*0.5, 1.0+flickerIntensity, 1.0)
 		}
