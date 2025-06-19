@@ -9,95 +9,22 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// Wobble effect constants
 const (
-	WobbleDuration  = 0.8 // Duration in seconds before block is destroyed
-	WobbleIntensity = 2.0 // Maximum wobble offset in pixels
-	WobbleFrequency = 8.0 // Wobbles per second
-)
-
-// Electrical storm constants
-const (
-	StormDuration  = 1.2  // Duration in seconds before storm blocks are destroyed
-	StormIntensity = 3.0  // Maximum storm wobble offset in pixels
-	StormFrequency = 12.0 // Storm wobbles per second (faster than normal wobble)
-	SparkFrequency = 15.0 // Sparks per second
-)
-
-// Fall animation constants
-const (
-	FallSpeed = 4.0 // Blocks per second falling speed
-)
-
-// Arc animation constants
-const (
-	ArcSpeed    = 4.0   // Arc animation speed (progress per second)
-	ArcHeight   = 3.0   // Maximum arc height in blocks above start position
-	MinArcScale = 0.1   // Starting scale for arcing blocks
-	MaxRotation = 360.0 // Maximum rotation in degrees during arc
-)
-
-// Warning animation constants
-const (
-	WarningDuration  = 1.0  // Duration in seconds before spawn
-	WarningIntensity = 3.0  // Maximum shake offset in pixels
-	WarningFrequency = 20.0 // Shakes per second
-)
-
-// BlockType represents the three different charge types
-type BlockType int
-
-const (
-	PositiveBlock BlockType = iota
-	NegativeBlock
-	NeutralBlock
-)
-
-// Block represents a single block in a Tetris piece
-type Block struct {
-	X, Y          int
-	BlockType     BlockType
-	IsWobbling    bool    // Whether this block is wobbling (about to be destroyed)
-	WobbleTime    float64 // Time this block has been wobbling
-	WobblePhase   float64 // Current wobble animation phase
-	ShowPowSprite bool    // Whether to show POW sprite on this wobbling block
-	IsInStorm     bool    // Whether this block is part of an electrical storm
-	StormTime     float64 // Time this block has been in the storm
-	StormPhase    float64 // Current storm animation phase
-	SparkPhase    float64 // Current spark effect phase
-	IsFalling     bool    // Whether this block is currently falling smoothly
-	FallStartY    float64 // Starting Y position for fall animation
-	FallTargetY   float64 // Target Y position for fall animation
-	FallProgress  float64 // Fall animation progress (0.0 to 1.0)
-	// Arc animation fields for neutral block spawning
-	IsArcing    bool    // Whether this block is currently arcing from storm to top
-	ArcStartX   float64 // Starting X position for arc animation
-	ArcStartY   float64 // Starting Y position for arc animation
-	ArcTargetX  float64 // Target X position for arc animation
-	ArcTargetY  float64 // Target Y position for arc animation (usually 0)
-	ArcProgress float64 // Arc animation progress (0.0 to 1.0)
-	ArcRotation float64 // Current rotation angle for arc animation
-	ArcScale    float64 // Current scale for arc animation (0.1 to 1.0)
-}
-
-// TetrisPiece represents a complete Tetris piece with multiple blocks
-type TetrisPiece struct {
-	Blocks   []Block
-	X, Y     int // Position of the piece
-	Rotation int // Current rotation state (0-3)
-}
-
-// PieceType represents the different Tetris piece shapes
-type PieceType int
-
-const (
-	IPiece PieceType = iota // Straight line
-	OPiece                  // Square
-	TPiece                  // T-shape
-	SPiece                  // S-shape
-	ZPiece                  // Z-shape
-	JPiece                  // J-shape
-	LPiece                  // L-shape
+	WobbleDuration   = 0.8   // Duration in seconds before block is destroyed
+	WobbleIntensity  = 2.0   // Maximum wobble offset in pixels
+	WobbleFrequency  = 8.0   // Wobbles per second
+	StormDuration    = 1.2   // Duration in seconds before storm blocks are destroyed
+	StormIntensity   = 3.0   // Maximum storm wobble offset in pixels
+	StormFrequency   = 12.0  // Storm wobbles per second (faster than normal wobble)
+	SparkFrequency   = 15.0  // Sparks per second
+	FallSpeed        = 4.0   // Blocks per second falling speed
+	ArcSpeed         = 4.0   // Arc animation speed (progress per second)
+	ArcHeight        = 3.0   // Maximum arc height in blocks above start position
+	MinArcScale      = 0.1   // Starting scale for arcing blocks
+	MaxRotation      = 360.0 // Maximum rotation in degrees during arc
+	WarningDuration  = 1.0   // Duration in seconds before spawn
+	WarningIntensity = 3.0   // Maximum shake offset in pixels
+	WarningFrequency = 20.0  // Shakes per second
 )
 
 // BlockManager handles creation and rendering of Tetris pieces
@@ -156,192 +83,8 @@ func (bm *BlockManager) GetBlockSprite(blockType BlockType) *ebiten.Image {
 	}
 }
 
-// GetPieceBlocks returns the block positions for a given piece type and rotation
-func (bm *BlockManager) GetPieceBlocks(pieceType PieceType, rotation int) []Block {
-	var blocks []Block
-
-	switch pieceType {
-	case IPiece: // Straight line piece
-		if rotation%2 == 0 {
-			// Horizontal
-			for i := 0; i < 4; i++ {
-				blocks = append(blocks, Block{X: i, Y: 0, BlockType: bm.GenerateRandomBlockType()})
-			}
-		} else {
-			// Vertical
-			for i := 0; i < 4; i++ {
-				blocks = append(blocks, Block{X: 0, Y: i, BlockType: bm.GenerateRandomBlockType()})
-			}
-		}
-
-	case OPiece: // Square piece - now rotates to move charged blocks
-		switch rotation % 4 {
-		case 0: // Original position
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 1: // 90 degrees clockwise
-			blocks = []Block{
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 2: // 180 degrees
-			blocks = []Block{
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 3: // 270 degrees clockwise
-			blocks = []Block{
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-			}
-		}
-
-	case TPiece: // T-shaped piece
-		switch rotation % 4 {
-		case 0: // T pointing up
-			blocks = []Block{
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 1: // T pointing right
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 2: // T pointing down
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 3: // T pointing left
-			blocks = []Block{
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-			}
-		}
-
-	case SPiece: // S-shaped piece
-		if rotation%2 == 0 {
-			blocks = []Block{
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		} else {
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-			}
-		}
-
-	case ZPiece: // Z-shaped piece
-		if rotation%2 == 0 {
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		} else {
-			blocks = []Block{
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-			}
-		}
-
-	case JPiece: // J-shaped piece
-		switch rotation % 4 {
-		case 0:
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 1:
-			blocks = []Block{
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 2:
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 3:
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-			}
-		}
-
-	case LPiece: // L-shaped piece
-		switch rotation % 4 {
-		case 0:
-			blocks = []Block{
-				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 1:
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 2:
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 2, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 0, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-			}
-		case 3:
-			blocks = []Block{
-				{X: 0, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 0, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 1, BlockType: bm.GenerateRandomBlockType()},
-				{X: 1, Y: 2, BlockType: bm.GenerateRandomBlockType()},
-			}
-		}
-	}
-
-	return blocks
-}
-
 // GetPiecePositions returns only the block positions for a given piece type and rotation
-// This is used for rotation to preserve block types while updating positions
+// This is used for rotation to preserve block type positions while updating positions
 func (bm *BlockManager) GetPiecePositions(pieceType PieceType, rotation int) []struct{ X, Y int } {
 	var positions []struct{ X, Y int }
 
@@ -527,7 +270,7 @@ func (bm *BlockManager) GetPiecePositions(pieceType PieceType, rotation int) []s
 
 // CreateTetrisPiece creates a new Tetris piece with random block types
 func (bm *BlockManager) CreateTetrisPiece(pieceType PieceType, x, y int) *TetrisPiece {
-	blocks := bm.GetPieceBlocks(pieceType, 0) // Start with rotation 0
+	blocks := GetPieceBlocks(pieceType, 0, bm.GenerateRandomBlockType)
 
 	return &TetrisPiece{
 		Blocks:   blocks,
@@ -860,20 +603,4 @@ func (bm *BlockManager) DrawPowSprite(screen *ebiten.Image, worldX, worldY, wobb
 	op.ColorM.Scale(1.0, 1.0, 1.0, 0.9) // Slight transparency so block is still visible underneath
 
 	screen.DrawImage(sprite, op)
-}
-
-// TestBlockDistribution tests the probability distribution of block types
-func (bm *BlockManager) TestBlockDistribution(numTests int) (positive, negative, neutral int) {
-	for i := 0; i < numTests; i++ {
-		blockType := bm.GenerateRandomBlockType()
-		switch blockType {
-		case PositiveBlock:
-			positive++
-		case NegativeBlock:
-			negative++
-		case NeutralBlock:
-			neutral++
-		}
-	}
-	return positive, negative, neutral
 }
