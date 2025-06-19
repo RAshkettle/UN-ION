@@ -104,11 +104,18 @@ func (gl *GameLogic) ClearInvalidStorms() {
 		key := fmt.Sprintf("%d,%d", block.X, block.Y)
 		validStormMap[key] = true
 	}
+	// Track columns and block types with <4 blocks
+	columnTypeCount := make(map[[2]int]int)
+	for _, block := range gl.placedBlocks {
+		if block.IsInStorm {
+			columnTypeCount[[2]int{block.X, int(block.BlockType)}]++
+		}
+	}
 	for i := range gl.placedBlocks {
 		block := &gl.placedBlocks[i]
 		if block.IsInStorm {
 			key := fmt.Sprintf("%d,%d", block.X, block.Y)
-			if !validStormMap[key] {
+			if !validStormMap[key] || columnTypeCount[[2]int{block.X, int(block.BlockType)}] < 4 {
 				block.IsInStorm = false
 				block.StormTime = 0
 				block.StormPhase = 0

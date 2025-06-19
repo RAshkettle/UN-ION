@@ -26,6 +26,7 @@ type AudioManager struct {
 
 func NewAudioManager() *AudioManager {
 	audioContext := audio.NewContext(SampleRate)
+	
 
 	return &AudioManager{
 		audioContext: audioContext,
@@ -42,6 +43,7 @@ func (am *AudioManager) Initialize() error {
 	if err != nil {
 		return err
 	}
+	am.blockBreakPlayer.SetBufferSize(SampleRate / 10)
 
 	swooshStream, err := vorbis.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.SwooshSound))
 	if err != nil {
@@ -52,6 +54,7 @@ func (am *AudioManager) Initialize() error {
 	if err != nil {
 		return err
 	}
+	am.swooshPlayer.SetBufferSize(100)
 
 	backgroundMusicStream, err := mp3.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.BackgroundMusic))
 	if err != nil {
@@ -62,6 +65,7 @@ func (am *AudioManager) Initialize() error {
 	if err != nil {
 		return err
 	}
+	am.backgroundMusicPlayer.SetBufferSize(100)
 
 	am.backgroundMusicPlayer.SetVolume(BackgroundMusicVolume)
 
@@ -87,6 +91,7 @@ func (am *AudioManager) CreateBlockBreakPlayer() *audio.Player {
 	if err != nil {
 		return nil
 	}
+	player.SetBufferSize(100)
 
 	return player
 }
