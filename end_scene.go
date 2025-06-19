@@ -19,13 +19,10 @@ type EndScene struct {
 }
 
 func (t *EndScene) Draw(screen *ebiten.Image) {
-	// Dark red background to indicate game over
 	screen.Fill(color.RGBA{25, 10, 10, 255})
 
-	// Get screen dimensions
 	w, h := screen.Bounds().Dx(), screen.Bounds().Dy()
 
-	// Draw "Game Over" title
 	titleText := "Game Over"
 	titleBounds, _ := text.Measure(titleText, t.titleFont, 0)
 	titleX := (w - int(titleBounds)) / 2
@@ -33,10 +30,9 @@ func (t *EndScene) Draw(screen *ebiten.Image) {
 
 	op := &text.DrawOptions{}
 	op.GeoM.Translate(float64(titleX), float64(titleY))
-	op.ColorScale.ScaleWithColor(color.RGBA{255, 100, 100, 255}) // Light red text
+	op.ColorScale.ScaleWithColor(color.RGBA{255, 100, 100, 255})
 	text.Draw(screen, titleText, t.titleFont, op)
 
-	// Draw final score
 	scoreText := fmt.Sprintf("Final Score: %d", t.finalScore)
 	scoreBounds, _ := text.Measure(scoreText, t.subtitleFont, 0)
 	scoreX := (w - int(scoreBounds)) / 2
@@ -44,10 +40,9 @@ func (t *EndScene) Draw(screen *ebiten.Image) {
 
 	op3 := &text.DrawOptions{}
 	op3.GeoM.Translate(float64(scoreX), float64(scoreY))
-	op3.ColorScale.ScaleWithColor(color.RGBA{255, 200, 100, 255}) // Golden color for score
+	op3.ColorScale.ScaleWithColor(color.RGBA{255, 200, 100, 255})
 	text.Draw(screen, scoreText, t.subtitleFont, op3)
 
-	// Draw restart instruction
 	subtitleText := "Press any key to restart"
 	subtitleBounds, _ := text.Measure(subtitleText, t.subtitleFont, 0)
 	subtitleX := (w - int(subtitleBounds)) / 2
@@ -55,12 +50,11 @@ func (t *EndScene) Draw(screen *ebiten.Image) {
 
 	op2 := &text.DrawOptions{}
 	op2.GeoM.Translate(float64(subtitleX), float64(subtitleY))
-	op2.ColorScale.ScaleWithColor(color.RGBA{200, 150, 150, 255}) // Lighter red text
+	op2.ColorScale.ScaleWithColor(color.RGBA{200, 150, 150, 255})
 	text.Draw(screen, subtitleText, t.subtitleFont, op2)
 }
 
 func (t *EndScene) Update() error {
-	// Check for key presses
 	if ebiten.IsKeyPressed(ebiten.KeySpace) ||
 		ebiten.IsKeyPressed(ebiten.KeyEnter) ||
 		ebiten.IsKeyPressed(ebiten.KeyEscape) ||
@@ -72,7 +66,6 @@ func (t *EndScene) Update() error {
 		t.sceneManager.TransitionTo(SceneGame)
 		return nil
 	}
-	// Check for mouse clicks
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) ||
 		inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
 		t.sceneManager.gameScene = NewGameScene(t.sceneManager)
@@ -87,7 +80,6 @@ func (t *EndScene) Layout(outerWidth, outerHeight int) (int, int) {
 }
 
 func NewEndScene(sm *SceneManager, finalScore int) *EndScene {
-	// Create fonts (same pattern as TitleScene)
 	titleFontSource, _ := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
 	titleFont := &text.GoTextFace{
 		Source: titleFontSource,
