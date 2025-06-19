@@ -8,6 +8,7 @@ const (
 	SceneTitleScreen SceneType = iota
 	SceneGame
 	SceneEndScreen
+	SceneHelp // Add help scene type
 )
 
 type Scene interface {
@@ -22,6 +23,7 @@ type SceneManager struct {
 	titleScene   *TitleScene
 	gameScene    *GameScene
 	endScene     *EndScene
+	helpScene    *HelpScene // Add help scene
 }
 
 func (sm *SceneManager) Update() error {
@@ -43,6 +45,7 @@ func NewSceneManager() *SceneManager {
 	sm.titleScene = NewTitleScene(sm)
 	sm.gameScene = NewGameScene(sm)
 	sm.endScene = NewEndScene(sm, 0)
+	sm.helpScene = NewHelpScene(sm)
 
 	sm.currentScene = sm.titleScene
 
@@ -55,10 +58,14 @@ func (sm *SceneManager) TransitionTo(sceneType SceneType) {
 	switch sceneType {
 	case SceneTitleScreen:
 		sm.currentScene = sm.titleScene
+		sm.titleScene.prevHPressed = true // Prevent immediate toggle
 	case SceneGame:
 		sm.currentScene = sm.gameScene
 	case SceneEndScreen:
 		sm.currentScene = sm.endScene
+	case SceneHelp:
+		sm.currentScene = sm.helpScene
+		sm.helpScene.prevHPressed = true // Prevent immediate toggle
 	}
 }
 

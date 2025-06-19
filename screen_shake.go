@@ -5,7 +5,7 @@ import (
 	"math/rand"
 )
 
-// ScreenShake handles camera shake effects
+
 type ScreenShake struct {
 	intensity   float64
 	duration    float64
@@ -15,12 +15,11 @@ type ScreenShake struct {
 	isShaking   bool
 }
 
-// NewScreenShake creates a new screen shake manager
+
 func NewScreenShake() *ScreenShake {
 	return &ScreenShake{}
 }
 
-// StartShake begins a screen shake effect
 func (ss *ScreenShake) StartShake(intensity, duration float64) {
 	ss.intensity = intensity
 	ss.duration = duration
@@ -28,7 +27,7 @@ func (ss *ScreenShake) StartShake(intensity, duration float64) {
 	ss.isShaking = true
 }
 
-// Update updates the screen shake effect
+
 func (ss *ScreenShake) Update(deltaTime float64) {
 	if !ss.isShaking {
 		ss.offsetX = 0
@@ -55,12 +54,12 @@ func (ss *ScreenShake) Update(deltaTime float64) {
 	ss.offsetY = math.Sin(angle) * currentIntensity
 }
 
-// GetOffset returns the current shake offset
+
 func (ss *ScreenShake) GetOffset() (float64, float64) {
 	return ss.offsetX, ss.offsetY
 }
 
-// IsShaking returns true if currently shaking
+
 func (ss *ScreenShake) IsShaking() bool {
 	return ss.isShaking
 }
