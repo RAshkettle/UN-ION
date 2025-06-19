@@ -7,55 +7,47 @@ import (
 
 	stopwatch "github.com/RAshkettle/Stopwatch"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/text"
-	"golang.org/x/image/font/basicfont"
 )
 
-// Game constants
 const (
-	GameboardWidth  = 192 // pixels
-	GameboardHeight = 320 // pixels
-	FallInterval    = 1   // seconds
+	GameboardWidth  = 192
+	GameboardHeight = 320
+	FallInterval    = 1
 )
 
 type GameScene struct {
-	sceneManager   *SceneManager
-	gameboard      *Gameboard
-	blockManager   *BlockManager
-	gameLogic      *GameLogic
-	inputHandler   *InputHandler
-	renderer       *GameRenderer
-	particleSystem *ParticleSystem
-	audioManager   *AudioManager
-	screenShake    *ScreenShake
-	scorePopups    *ScorePopupSystem
-	currentPiece   *TetrisPiece
-	currentType    PieceType
-	nextPiece      *TetrisPiece
-	nextType       PieceType
-	fallTimer      *stopwatch.Stopwatch
-	CurrentScore   int
-	lastUpdateTime time.Time
-	isPaused       bool
+	sceneManager    *SceneManager
+	gameboard       *Gameboard
+	blockManager    *BlockManager
+	gameLogic       *GameLogic
+	inputHandler    *InputHandler
+	renderer        *GameRenderer
+	particleSystem  *ParticleSystem
+	audioManager    *AudioManager
+	screenShake     *ScreenShake
+	scorePopups     *ScorePopupSystem
+	pauseController *PauseController
+	gameState       *GameState
+	currentPiece    *TetrisPiece
+	currentType     PieceType
+	nextPiece       *TetrisPiece
+	nextType        PieceType
+	fallTimer       *stopwatch.Stopwatch
+	CurrentScore    int
+	lastUpdateTime  time.Time
 
-	// Reusable images to avoid per-frame allocations
 	tempImage     *ebiten.Image
 	particleImage *ebiten.Image
 	blocksImage   *ebiten.Image
-	pauseOverlay  *ebiten.Image
 
-	// Reusable draw options to avoid per-frame allocations
 	shakeOp    *ebiten.DrawImageOptions
 	particleOp *ebiten.DrawImageOptions
 	blocksOp   *ebiten.DrawImageOptions
 }
 
 func (g *GameScene) Update() error {
-	// Handle pause input (always check, even when paused)
-	g.handlePauseInput()
+	g.pauseController.Update()
 
-	// Calculate delta time
 	now := time.Now()
 	if g.lastUpdateTime.IsZero() {
 		g.lastUpdateTime = now
@@ -63,36 +55,27 @@ func (g *GameScene) Update() error {
 	dt := now.Sub(g.lastUpdateTime).Seconds()
 	g.lastUpdateTime = now
 
-	// Update visual effects even when paused
 	g.updateVisualEffects(dt)
 
-	// Skip game logic if paused
-	if g.isPaused {
+	if g.gameState.IsPaused {
 		return nil
 	}
 
-	// Update the fall timer
 	g.fallTimer.Update()
 
-	// Update wobbling blocks and handle chain reactions
 	g.updateWobblingBlocks(dt)
 
-	// Handle input
 	shouldPlacePiece := g.inputHandler.HandleInput(g.currentPiece, g.currentType)
 
-	// If input handler detected piece should be placed immediately
 	if shouldPlacePiece && g.currentPiece != nil {
 		g.placePieceAndCheckReactions()
 		return nil
 	}
 
-	// Handle automatic falling (every 1 second)
 	if g.fallTimer.IsDone() {
 		if g.currentPiece != nil {
 			if g.gameLogic.TryMovePiece(g.currentPiece, 0, 1) {
-				// Piece fell successfully
 			} else {
-				// Piece can't fall further, place it
 				g.placePieceAndCheckReactions()
 				return nil
 			}
@@ -105,82 +88,63 @@ func (g *GameScene) Update() error {
 }
 
 func (g *GameScene) Draw(screen *ebiten.Image) {
-	// Get screen shake offset
 	shakeX, shakeY := g.screenShake.GetOffset()
 
-	// Ensure temp images are the right size (only recreate if size changed)
 	screenW, screenH := screen.Bounds().Dx(), screen.Bounds().Dy()
 	if g.tempImage == nil || g.tempImage.Bounds().Dx() != screenW || g.tempImage.Bounds().Dy() != screenH {
 		g.tempImage = ebiten.NewImage(screenW, screenH)
 		g.particleImage = ebiten.NewImage(screenW, screenH)
 	}
 
-	// Clear temp image
 	g.tempImage.Clear()
 
-	// Calculate drop shadow for current piece
 	var shadowPiece *TetrisPiece
 	if g.currentPiece != nil {
 		shadowPiece = g.gameLogic.CalculateDropPosition(g.currentPiece)
 	}
 
-	// Render game with drop shadow
 	g.renderGameWithShadow(g.tempImage, shadowPiece)
 	g.renderer.RenderScore(g.tempImage, g.CurrentScore)
 	g.renderNextPiecePreview(g.tempImage)
 
-	// Render score popups first
 	if g.scorePopups != nil {
 		g.scorePopups.Draw(g.tempImage)
 	}
 
-	// Apply shake offset when drawing to screen
 	g.shakeOp.GeoM.Reset()
 	g.shakeOp.GeoM.Translate(shakeX, shakeY)
 	screen.DrawImage(g.tempImage, g.shakeOp)
 
-	// Render particles ABSOLUTELY LAST, directly to screen with shake offset
 	if g.particleSystem != nil {
 		g.particleOp.GeoM.Reset()
 		g.particleOp.GeoM.Translate(shakeX, shakeY)
 
-		// Clear and reuse particle image
 		g.particleImage.Clear()
 		g.particleSystem.Draw(g.particleImage)
 		screen.DrawImage(g.particleImage, g.particleOp)
 	}
 
-	// Draw pause overlay if paused
-	g.drawPauseOverlay(screen)
+	g.pauseController.Draw(screen)
 }
 
-// renderGameWithShadow renders the game state including drop shadow
 func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *TetrisPiece) {
-	// Dark background
 	screen.Fill(color.RGBA{15, 20, 30, 255})
 
-	// Draw the gameboard with shader effect FIRST (background)
 	g.gameboard.Draw(screen)
 
-	// Calculate block size for rendering
 	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
 
-	// Ensure blocks image is the right size (only recreate if size changed)
 	if g.blocksImage == nil || g.blocksImage.Bounds().Dx() != g.gameboard.Width || g.blocksImage.Bounds().Dy() != g.gameboard.Height {
 		g.blocksImage = ebiten.NewImage(g.gameboard.Width, g.gameboard.Height)
 	}
 
-	// Clear blocks image
 	g.blocksImage.Clear()
 
-	// Draw placed blocks first
 	for _, block := range g.gameLogic.GetPlacedBlocks() {
-		// Get the current render transform (handles falling and arc animation)
 		renderX, renderY, rotation, scale := g.gameLogic.GetBlockRenderTransform(&block)
 		worldX := renderX * blockSize
 		worldY := renderY * blockSize
 
-		// Use transformed drawing for arcing blocks, normal drawing for others
 		if block.IsArcing || rotation != 0.0 || scale != 1.0 {
 			g.blockManager.DrawBlockTransformed(g.blocksImage, block, worldX, worldY, rotation, scale, blockSize)
 		} else {
@@ -188,7 +152,6 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 		}
 	}
 
-	// Draw drop shadow (if different from current piece position)
 	if shadowPiece != nil && g.currentPiece != nil && shadowPiece.Y > g.currentPiece.Y {
 		for _, block := range shadowPiece.Blocks {
 			worldX := float64(shadowPiece.X+block.X) * blockSize
@@ -196,8 +159,6 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 			g.blockManager.DrawShadowBlock(g.blocksImage, block, worldX, worldY, blockSize)
 		}
 	}
-
-	// Draw current piece on top of shadow and placed blocks
 	if g.currentPiece != nil {
 		for _, block := range g.currentPiece.Blocks {
 			worldX := float64(g.currentPiece.X+block.X) * blockSize
@@ -206,7 +167,6 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 		}
 	}
 
-	// Draw storm warning sprites on top of everything
 	warnings := g.gameLogic.GetStormWarnings()
 	for _, warning := range warnings {
 		worldX := float64(warning.Column) * blockSize
@@ -214,7 +174,6 @@ func (g *GameScene) renderGameWithShadow(screen *ebiten.Image, shadowPiece *Tetr
 		g.blockManager.DrawWarningSprite(g.blocksImage, worldX, worldY, warning.WarningTime, blockSize, warning.Column, g.gameboard.Width)
 	}
 
-	// Draw all blocks on top of the gameboard
 	g.blocksOp.GeoM.Reset()
 	g.blocksOp.GeoM.Translate(float64(g.gameboard.X), float64(g.gameboard.Y))
 	screen.DrawImage(g.blocksImage, g.blocksOp)
@@ -225,20 +184,15 @@ func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {
 		return
 	}
 
-	// Calculate preview position (to the right of the gameboard)
 	screenWidth, _ := screen.Bounds().Dx(), screen.Bounds().Dy()
 
-	// Position the preview to the right of the gameboard
-	previewX := float64(g.gameboard.X + g.gameboard.Width + 20) // 20 pixels margin
-	previewY := float64(g.gameboard.Y + 100)                    // 66 pixels from top of gameboard (lowered by 16px)
+	previewX := float64(g.gameboard.X + g.gameboard.Width + 20)
+	previewY := float64(g.gameboard.Y + 100)
 
-	// Scale the preview blocks to be smaller
 	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
-	previewBlockSize := blockSize * 0.6 // Make preview blocks 60% of normal size
+	previewBlockSize := blockSize * 0.6
 
-	// Only render if there's space on screen
 	if previewX+previewBlockSize*4 < float64(screenWidth) {
-		// Render each block of the next piece
 		for _, block := range g.nextPiece.Blocks {
 			worldX := previewX + float64(block.X)*previewBlockSize
 			worldY := previewY + float64(block.Y)*previewBlockSize
@@ -249,49 +203,38 @@ func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {
 }
 
 func (g *GameScene) spawnNewPiece() {
-	// Use the next piece as current piece
 	if g.nextPiece != nil {
 		g.currentType = g.nextType
-		// Copy the next piece and position it properly for gameplay
 		g.currentPiece = g.copyPieceForGameplay(g.nextPiece, g.currentType)
 	} else {
-		// Fallback for first piece (shouldn't happen in normal flow)
 		pieceTypes := []PieceType{IPiece, OPiece, TPiece, SPiece, ZPiece, JPiece, LPiece}
 		g.currentType = pieceTypes[rand.Intn(len(pieceTypes))]
 		g.currentPiece = g.gameLogic.SpawnNewPiece(g.currentType)
 	}
 
-	// Generate new next piece
 	g.generateNextPiece()
 
-	// Check if the current piece can be placed at its spawn position (ignore neutral blocks for game over)
 	if g.currentPiece != nil && !g.gameLogic.IsValidPositionIgnoreNeutral(g.currentPiece, 0, 0) {
-		// Game over - new piece can't be placed
 		g.sceneManager.TransitionToEndScreen(g.CurrentScore)
 	}
 }
 
 func (g *GameScene) generateNextPiece() {
-	// Generate random piece type for next piece
 	pieceTypes := []PieceType{IPiece, OPiece, TPiece, SPiece, ZPiece, JPiece, LPiece}
 	g.nextType = pieceTypes[rand.Intn(len(pieceTypes))]
 
-	// Create the next piece at a preview position (we'll position it for display)
 	g.nextPiece = g.blockManager.CreateTetrisPiece(g.nextType, 0, 0)
 }
 
 func (g *GameScene) Layout(outerWidth, outerHeight int) (int, int) {
-	// Update gameboard scaling when layout changes
 	g.gameboard.UpdateScale(outerWidth, outerHeight)
 	return outerWidth, outerHeight
 }
 
 func NewGameScene(sm *SceneManager) *GameScene {
-	// Create fall timer (1 second intervals)
 	fallTimer := stopwatch.NewStopwatch(FallInterval * time.Second)
 	fallTimer.Start()
 
-	// Create components
 	gameboard := NewGameboard(GameboardWidth, GameboardHeight)
 	blockManager := NewBlockManager()
 	gameLogic := NewGameLogic(gameboard, blockManager)
@@ -301,83 +244,71 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	particleSystem := NewParticleSystem()
 	screenShake := NewScreenShake()
 	scorePopups := NewScorePopupSystem()
+	gameState := NewGameState()
+	pauseController := NewPauseController(gameState, audioManager)
 
-	// Initialize audio
 	err := audioManager.Initialize()
 	if err != nil {
-		// Log error but continue without audio
 		println("Warning: Could not initialize audio:", err.Error())
 	}
 
 	g := &GameScene{
-		sceneManager:   sm,
-		gameboard:      gameboard,
-		blockManager:   blockManager,
-		gameLogic:      gameLogic,
-		inputHandler:   inputHandler,
-		renderer:       renderer,
-		particleSystem: particleSystem,
-		audioManager:   audioManager,
-		screenShake:    screenShake,
-		scorePopups:    scorePopups,
-		fallTimer:      fallTimer,
-		CurrentScore:   0,
-		lastUpdateTime: time.Now(),
+		sceneManager:    sm,
+		gameboard:       gameboard,
+		blockManager:    blockManager,
+		gameLogic:       gameLogic,
+		inputHandler:    inputHandler,
+		renderer:        renderer,
+		particleSystem:  particleSystem,
+		audioManager:    audioManager,
+		screenShake:     screenShake,
+		scorePopups:     scorePopups,
+		pauseController: pauseController,
+		gameState:       gameState,
+		fallTimer:       fallTimer,
+		CurrentScore:    0,
+		lastUpdateTime:  time.Now(),
 
-		// Initialize reusable draw options to avoid per-frame allocations
 		shakeOp:    &ebiten.DrawImageOptions{},
 		particleOp: &ebiten.DrawImageOptions{},
 		blocksOp:   &ebiten.DrawImageOptions{},
-		// tempImage, particleImage, and blocksImage will be created lazily in Draw()
 	}
 
-	// Set up the explosion callback for particle effects
 	gameLogic.SetExplosionCallback(func(worldX, worldY float64, blockType BlockType) {
 		particleSystem.AddExplosion(worldX, worldY, blockType)
 	})
 
-	// Set up the audio callback for block breaking sounds
 	gameLogic.SetAudioCallback(func(blocksRemoved int) {
 		audioManager.PlayBlockBreakMultiple(blocksRemoved)
 
-		// Trigger screen shake based on number of blocks removed
-		intensity := float64(blocksRemoved) * 2.0     // 2 pixels per block
-		duration := 0.2 + float64(blocksRemoved)*0.05 // Longer shake for more blocks
+		intensity := float64(blocksRemoved) * 2.0
+		duration := 0.2 + float64(blocksRemoved)*0.05
 		screenShake.StartShake(intensity, duration)
 	})
 
-	// Set up the dust callback for piece placement effects
 	gameLogic.SetDustCallback(func(worldX, worldY float64) {
 		particleSystem.AddDustCloud(worldX, worldY)
 	})
 
-	// Set up the hard drop callback for screen shake effects
 	gameLogic.SetHardDropCallback(func(dropHeight int) {
-		// Subtle screen shake for hard drops (much less intense than block explosions)
-		intensity := 1.0 + float64(dropHeight)*0.5 // Subtle intensity
-		duration := 0.1                            // Short duration
+		intensity := 1.0 + float64(dropHeight)*0.5
+		duration := 0.1
 		screenShake.StartShake(intensity, duration)
 	})
 
-	// Generate initial next piece
 	g.generateNextPiece()
 
-	// Spawn initial current piece
 	g.spawnNewPiece()
 
-	// Start background music at 10% volume
 	audioManager.StartBackgroundMusic()
 
 	return g
 }
 
-// copyPieceForGameplay creates a copy of a piece and positions it for gameplay
 func (g *GameScene) copyPieceForGameplay(piece *TetrisPiece, pieceType PieceType) *TetrisPiece {
-	// Create a copy of the blocks
 	blocksCopy := make([]Block, len(piece.Blocks))
 	copy(blocksCopy, piece.Blocks)
 
-	// Calculate spawn position (center of gameboard, top)
 	blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
 	gameboardWidthInBlocks := int(float64(g.gameboard.Width) / blockSize)
 	centerX := gameboardWidthInBlocks / 2
@@ -390,23 +321,6 @@ func (g *GameScene) copyPieceForGameplay(piece *TetrisPiece, pieceType PieceType
 	}
 }
 
-// handlePauseInput processes pause key input and manages pause state
-func (g *GameScene) handlePauseInput() {
-	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
-		g.isPaused = !g.isPaused
-		if g.isPaused {
-			if g.audioManager != nil {
-				g.audioManager.PauseBackgroundMusic()
-			}
-		} else {
-			if g.audioManager != nil {
-				g.audioManager.ResumeBackgroundMusic()
-			}
-		}
-	}
-}
-
-// updateVisualEffects updates particles, screen shake, and score popups
 func (g *GameScene) updateVisualEffects(dt float64) {
 	if g.particleSystem != nil {
 		g.particleSystem.Update(dt)
@@ -421,102 +335,50 @@ func (g *GameScene) updateVisualEffects(dt float64) {
 	}
 }
 
-// drawPauseOverlay renders the pause overlay with text
-func (g *GameScene) drawPauseOverlay(screen *ebiten.Image) {
-	if !g.isPaused {
-		return
-	}
-
-	// Ensure pause overlay is the right size (only recreate if size changed)
-	screenW, screenH := screen.Bounds().Dx(), screen.Bounds().Dy()
-	if g.pauseOverlay == nil || g.pauseOverlay.Bounds().Dx() != screenW || g.pauseOverlay.Bounds().Dy() != screenH {
-		g.pauseOverlay = ebiten.NewImage(screenW, screenH)
-		g.pauseOverlay.Fill(color.RGBA{0, 0, 0, 128}) // 50% transparent black
-	}
-
-	// Draw semi-transparent overlay
-	screen.DrawImage(g.pauseOverlay, nil)
-
-	// Draw "PAUSED" text in the center
-	centerX := screen.Bounds().Dx() / 2
-	centerY := screen.Bounds().Dy() / 2
-
-	// Use basic font for text rendering
-	fontFace := basicfont.Face7x13
-
-	// Draw "PAUSED" text
-	pausedText := "PAUSED"
-	pausedBounds := text.BoundString(fontFace, pausedText)
-	pausedX := centerX - pausedBounds.Dx()/2
-	pausedY := centerY - 10
-	text.Draw(screen, pausedText, fontFace, pausedX, pausedY, color.RGBA{255, 255, 255, 255})
-
-	// Draw "Press P to Resume" below
-	resumeText := "Press P to Resume"
-	resumeBounds := text.BoundString(fontFace, resumeText)
-	resumeX := centerX - resumeBounds.Dx()/2
-	resumeY := centerY + 20
-	text.Draw(screen, resumeText, fontFace, resumeX, resumeY, color.RGBA{200, 200, 200, 255})
-}
-
-// updateWobblingBlocks updates wobbling blocks and electrical storms, handles chain reactions
 func (g *GameScene) updateWobblingBlocks(dt float64) {
-	// Update arc animations for neutral blocks
 	anyBlocksFinishedArcing := g.gameLogic.UpdateArcingBlocks(dt)
 
-	// Update falling block animations
 	anyBlocksLanded := g.gameLogic.UpdateFallingBlocks(dt)
 
-	// Update wobbling animation
 	anyBlocksFinished := g.gameLogic.UpdateWobblingBlocks(dt)
 
-	// Update electrical storm animation (visual effects only, no removal)
 	g.gameLogic.UpdateElectricalStorms(dt)
 
-	// Update storm timers and generate neutral blocks
 	newNeutralBlocks := g.gameLogic.UpdateStormTimers(dt)
 	for _, neutralBlock := range newNeutralBlocks {
-		// Simply add the neutral block - it will fall with the normal falling process
 		g.gameLogic.AddNeutralBlock(neutralBlock)
 
-		// Trigger dust effect for neutral block appearance
 		blockSize := g.blockManager.GetScaledBlockSize(g.gameboard.Width, g.gameboard.Height)
 		worldX := float64(g.gameboard.X) + float64(neutralBlock.X)*blockSize + blockSize/2
 		worldY := float64(g.gameboard.Y) + float64(neutralBlock.Y)*blockSize + blockSize/2
 		g.particleSystem.AddDustCloud(worldX, worldY)
 	}
 
-	// Process block falling for all blocks that need to fall
 	if len(newNeutralBlocks) > 0 {
 		g.gameLogic.processBlockFalling()
 	}
 
-	// Check for new reactions when blocks finish landing or arcing
 	if anyBlocksLanded || anyBlocksFinishedArcing {
 		reactionScore := g.gameLogic.CheckForNewReactions()
-		g.gameLogic.CheckForElectricalStorms() // Check for new storms (visual only)
+		g.gameLogic.CheckForElectricalStorms()
 
 		if reactionScore > 0 {
 			g.CurrentScore += reactionScore
 		}
 	}
 
-	// Handle finished wobbling blocks
 	if anyBlocksFinished {
 		removedCount := g.gameLogic.RemoveFinishedWobblingBlocks()
 
 		if removedCount > 0 {
-			// Make remaining blocks fall with smooth animation
 			g.gameLogic.processBlockFalling()
 
-			// Check for new chain reactions
 			reactionScore := g.gameLogic.CheckForNewReactions()
-			g.gameLogic.CheckForElectricalStorms() // Check for new storms (visual only)
+			g.gameLogic.CheckForElectricalStorms()
 
 			if reactionScore > 0 {
 				g.CurrentScore += reactionScore
 
-				// Add score popup for chain reaction
 				popupX := float64(g.gameboard.X + g.gameboard.Width/2)
 				popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
 				g.scorePopups.AddScorePopup(popupX, popupY, reactionScore)
@@ -525,33 +387,26 @@ func (g *GameScene) updateWobblingBlocks(dt float64) {
 	}
 }
 
-// placePieceAndCheckReactions places a piece and handles reactions/scoring
 func (g *GameScene) placePieceAndCheckReactions() {
 	if g.currentPiece == nil {
 		return
 	}
 
-	// Place the piece
 	g.gameLogic.PlacePiece(g.currentPiece)
 
-	// Check for new horizontal reactions and start wobbling on blocks
 	reactionScore := g.gameLogic.CheckForNewReactions()
 
-	// Check for electrical storms (vertical sequences of 4+ same type) - visual effect only
 	g.gameLogic.CheckForElectricalStorms()
 
 	if reactionScore > 0 {
 		g.CurrentScore += reactionScore
 
-		// Add score popup at center of gameboard
 		popupX := float64(g.gameboard.X + g.gameboard.Width/2)
 		popupY := float64(g.gameboard.Y + g.gameboard.Height/3)
 		g.scorePopups.AddScorePopup(popupX, popupY, reactionScore)
 	}
 
-	// Check for game over condition
 	if g.gameLogic.IsGameOver() {
-		// Transition to end scene with current score
 		g.sceneManager.TransitionToEndScreen(g.CurrentScore)
 		return
 	}

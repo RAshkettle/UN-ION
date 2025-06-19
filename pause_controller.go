@@ -61,7 +61,7 @@ func (pc *PauseController) Draw(screen *ebiten.Image) {
 	pausedText := "PAUSED"
 	pausedAdvance, _ := text.Measure(pausedText, pauseTitleFont, 0)
 	pausedX := centerX - int(pausedAdvance)/2
-	pausedY := centerY - 10
+	pausedY := centerY - 30
 	pausedOp := &text.DrawOptions{}
 	pausedOp.GeoM.Translate(float64(pausedX), float64(pausedY))
 	pausedOp.ColorScale.ScaleWithColor(color.RGBA{220, 220, 255, 255})
@@ -70,7 +70,7 @@ func (pc *PauseController) Draw(screen *ebiten.Image) {
 	resumeText := "Press P to Resume"
 	resumeAdvance, _ := text.Measure(resumeText, pauseSubtitleFont, 0)
 	resumeX := centerX - int(resumeAdvance)/2
-	resumeY := centerY + 20
+	resumeY := centerY + 40
 	resumeOp := &text.DrawOptions{}
 	resumeOp.GeoM.Translate(float64(resumeX), float64(resumeY))
 	resumeOp.ColorScale.ScaleWithColor(color.RGBA{200, 200, 200, 255})
