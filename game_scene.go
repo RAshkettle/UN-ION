@@ -343,6 +343,7 @@ func (g *GameScene) updateWobblingBlocks(dt float64) {
 	anyBlocksFinished := g.gameLogic.UpdateWobblingBlocks(dt)
 
 	g.gameLogic.UpdateElectricalStorms(dt)
+	g.gameLogic.ClearInvalidStorms()
 
 	newNeutralBlocks := g.gameLogic.UpdateStormTimers(dt)
 	for _, neutralBlock := range newNeutralBlocks {
