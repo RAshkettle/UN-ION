@@ -7,7 +7,6 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
-	"github.com/hajimehoshi/ebiten/v2/audio/vorbis"
 )
 
 const (
@@ -34,7 +33,7 @@ func NewAudioManager() *AudioManager {
 }
 
 func (am *AudioManager) Initialize() error {
-	blockBreakStream, err := vorbis.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.BlockBreakSound))
+	blockBreakStream, err := mp3.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.BlockBreakSound))
 	if err != nil {
 		return err
 	}
@@ -45,7 +44,7 @@ func (am *AudioManager) Initialize() error {
 	}
 	am.blockBreakPlayer.SetBufferSize(SampleRate / 10)
 
-	swooshStream, err := vorbis.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.SwooshSound))
+	swooshStream, err := mp3.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.SwooshSound))
 	if err != nil {
 		return err
 	}
@@ -82,7 +81,7 @@ func (am *AudioManager) PlayBlockBreak() {
 }
 
 func (am *AudioManager) CreateBlockBreakPlayer() *audio.Player {
-	blockBreakStream, err := vorbis.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.BlockBreakSound))
+	blockBreakStream, err := mp3.DecodeWithSampleRate(am.audioContext.SampleRate(), bytes.NewReader(assets.BlockBreakSound))
 	if err != nil {
 		return nil
 	}

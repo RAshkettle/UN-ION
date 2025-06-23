@@ -18,8 +18,8 @@ var (
 	ZapSprite            = loadImage("images/zap.png")
 	PowSprite            = loadImage("images/pow.png")
 
-	BlockBreakSound = loadAudio("audio/coin.ogg")
-	SwooshSound     = loadAudio("audio/swoosh.ogg")
+	BlockBreakSound = loadAudio("audio/breakblock.mp3")
+	SwooshSound     = loadAudio("audio/swoosh.mp3")
 	BackgroundMusic = loadAudio("audio/background_music.mp3")
 )
 
