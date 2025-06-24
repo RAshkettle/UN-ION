@@ -205,7 +205,7 @@ func (g *GameScene) renderNextPiecePreview(screen *ebiten.Image) {
 func (g *GameScene) spawnNewPiece() {
 	if g.nextPiece != nil {
 		g.currentType = g.nextType
-		g.currentPiece = g.copyPieceForGameplay(g.nextPiece, g.currentType)
+		g.currentPiece = g.copyPieceForGameplay(g.nextPiece)
 	} else {
 		pieceTypes := []PieceType{IPiece, OPiece, TPiece, SPiece, ZPiece, JPiece, LPiece}
 		g.currentType = pieceTypes[rand.Intn(len(pieceTypes))]
@@ -305,7 +305,7 @@ func NewGameScene(sm *SceneManager) *GameScene {
 	return g
 }
 
-func (g *GameScene) copyPieceForGameplay(piece *TetrisPiece, pieceType PieceType) *TetrisPiece {
+func (g *GameScene) copyPieceForGameplay(piece *TetrisPiece) *TetrisPiece {
 	blocksCopy := make([]Block, len(piece.Blocks))
 	copy(blocksCopy, piece.Blocks)
 
